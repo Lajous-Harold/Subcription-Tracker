@@ -44,7 +44,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
     <Card>
       <Card.Title
         title={candidate.label}
-        subtitle={candidate.provider ? `Fournisseur reconnu : ${candidate.provider.name}` : 'Fournisseur non reconnu'}
+        subtitle={`${candidate.occurrences} paiements · tous les ~${Math.round(candidate.intervalDays)} jours${candidate.provider ? '' : ' · fournisseur non reconnu'}`}
         right={() => (
           <Text variant="titleMedium" style={{ marginRight: 16 }}>
             {formatMoney(candidate.amount.lastCents, candidate.currency)}

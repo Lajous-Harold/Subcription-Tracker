@@ -52,28 +52,32 @@ describe('detectSubscriptions — fixtures golden', () => {
   for (const scenario of FIXTURE_SCENARIOS) {
     it(`${scenario.id} : ${scenario.description}`, () => {
       const found = byScenario.get(scenario.id) ?? [];
-      if (!scenario.expect.detected) {
+      const expectation = scenario.expect;
+      if (!expectation.detected) {
         expect(found).toHaveLength(0);
         return;
       }
       expect(found).toHaveLength(1);
       const candidate = found[0]!;
-      if (scenario.expect.providerSlug) {
-        const provider = PROVIDERS.find((p) => p.slug === scenario.expect.providerSlug);
+      const slug = expectation.providerSlug;
+      if (slug) {
+        const provider = PROVIDERS.find((p) => p.slug === slug);
         expect(candidate.providerId).toBe(provider?.id);
       }
-      expect(candidate.stale).toBe(scenario.expect.stale ?? false);
-      if (scenario.expect.maxLevel === 'low') expect(candidate.level).toBe('low');
+      expect(candidate.stale).toBe(expectation.stale ?? false);
+      if (expectation.maxLevel === 'low') expect(candidate.level).toBe('low');
       expect(candidate.reasons.length).toBeGreaterThan(2);
     });
   }
 
   it('Spotify sort en confiance élevée avec la bonne échéance', () => {
     const spotify = byScenario.get('spotify')?.[0];
-    expect(spotify?.level).toBe('high');
-    expect(spotify?.amount.medianCents).toBe(1099);
-    expect(spotify?.nextDueDate >= TODAY).toBe(true);
-    expect(spotify?.nextDueDate.slice(8, 10)).toMatch(/0[5-7]/);
+    expect(spotify).toBeDefined();
+    expect(spotify!.level).toBe('high');
+    expect(spotify!.confidence).toBeLessThanOrEqual(0.95);
+    expect(spotify!.amount.medianCents).toBe(1099);
+    expect(spotify!.nextDueDate >= TODAY).toBe(true);
+    expect(spotify!.nextDueDate.slice(8, 10)).toMatch(/0[5-7]/);
   });
 
   it('la hausse de prix Netflix reste un seul abonnement au dernier prix', () => {

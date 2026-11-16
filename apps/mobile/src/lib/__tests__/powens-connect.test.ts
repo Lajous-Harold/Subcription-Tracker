@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { completeConnectCallback } from '../powens-connect';
 import { api } from '../api';
 

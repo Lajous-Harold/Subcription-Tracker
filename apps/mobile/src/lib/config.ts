@@ -16,4 +16,5 @@ export const API_URL = (fromEnv && fromEnv.length > 0 ? fromEnv : defaultApiUrl(
 
 export const PLATFORM: 'web' | 'native' = Platform.OS === 'web' ? 'web' : 'native';
 
-export const IS_DEV = __DEV__;
+/** Données de démonstration : en développement, ou dans un build de démo (EXPO_PUBLIC_ENABLE_DEMO=true). */
+export const DEMO_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEMO === 'true';

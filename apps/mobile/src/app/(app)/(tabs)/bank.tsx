@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/toast';
 import { ErrorState, Loading, Muted, Screen, SectionTitle, styles } from '@/components/ui';
 import { api } from '@/lib/api';
-import { IS_DEV } from '@/lib/config';
+import { DEMO_ENABLED } from '@/lib/config';
 import { BANK_STATUS_HELP, BANK_STATUS_LABELS, formatDateTime, formatMoney } from '@/lib/format';
 import { ApiError, errorMessage } from '@/lib/http';
 import { openPowensFlow } from '@/lib/powens-connect';
@@ -43,7 +43,7 @@ function DemoDataCard() {
   });
   return (
     <Card mode="outlined">
-      <Card.Title title="Données de démonstration" subtitle="Développement uniquement" />
+      <Card.Title title="Données de démonstration" subtitle="Nécessite les routes de développement de l’API" />
       <Card.Content>
         <Muted>
           Importe des opérations fictives (Spotify, Netflix, salle de sport…) pour tester la détection sans banque.
@@ -244,7 +244,7 @@ export default function BankScreen() {
         </Button>
       ) : null}
 
-      {IS_DEV ? <DemoDataCard /> : null}
+      {DEMO_ENABLED ? <DemoDataCard /> : null}
 
       <ConfirmDialog
         visible={unlinkOpen}

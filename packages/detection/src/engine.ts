@@ -246,7 +246,8 @@ function analyzeSeries(
   if (occurrences === 2) score = Math.min(score, provider ? 0.6 : 0.49);
   // Une série interrompue reste à vérifier : jamais en confiance élevée.
   if (stale) score = Math.min(score, config.highThreshold - 0.01);
-  const confidence = Math.round(Math.max(0, Math.min(1, score)) * 100) / 100;
+  // Une série d'opérations n'est jamais une preuve d'abonnement : la confiance plafonne à 0,95.
+  const confidence = Math.round(Math.max(0, Math.min(0.95, score)) * 100) / 100;
   if (confidence < config.lowThreshold) return null;
 
   // Série active : prochaine échéance future. Série interrompue : échéance attendue (passée).
@@ -259,9 +260,11 @@ function analyzeSeries(
   const reasons = [
     `${occurrences} paiements entre le ${formatFrDate(first.date)} et le ${formatFrDate(last.date)}`,
     `Rythme mensuel : tous les ~${Math.round(intervalDays)} jours${intervalStdev <= 2 ? ', très régulier' : ''}`,
-    amountCv <= 0.02
+    Math.min(...amounts) === Math.max(...amounts)
       ? `Montant stable : ${formatMoney(medianCents, currency)}`
-      : `Montant variable : de ${formatMoney(Math.min(...amounts), currency)} à ${formatMoney(Math.max(...amounts), currency)}`,
+      : amountCv <= 0.02
+        ? `Montant quasi stable : ~${formatMoney(medianCents, currency)} (de ${formatMoney(Math.min(...amounts), currency)} à ${formatMoney(Math.max(...amounts), currency)})`
+        : `Montant variable : de ${formatMoney(Math.min(...amounts), currency)} à ${formatMoney(Math.max(...amounts), currency)}`,
     `Prélevé vers le ${dayOfMonth} du mois`,
   ];
   if (provider) reasons.push(`Fournisseur reconnu : ${provider.name}`);
