@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+# Expo
+.expo/
+web-build/
+apps/mobile/dist/
+apps/mobile/android/
+apps/mobile/ios/
+expo-env.d.ts
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.metro-health-check*
+# Outils
+.idea/
+.vscode/*
+!.vscode/extensions.json
+apps/api/openapi.json
