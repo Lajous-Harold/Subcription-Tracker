@@ -169,8 +169,15 @@ describe('catalogue fournisseurs', () => {
     expect(all.body.items.length).toBeGreaterThanOrEqual(20);
     for (const provider of all.body.items) {
       expect(provider.cancellation.instructions.length).toBeGreaterThan(20);
-      expect(provider.cancellation.lastVerifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(
+        provider.cancellation.lastVerifiedAt === null ||
+          /^\d{4}-\d{2}-\d{2}$/.test(provider.cancellation.lastVerifiedAt),
+      ).toBe(true);
     }
+    const verified = all.body.items.filter(
+      (p: { cancellation: { lastVerifiedAt: string | null } }) => p.cancellation.lastVerifiedAt,
+    );
+    expect(verified.length).toBeGreaterThanOrEqual(9);
     const search = await request(app).get('/api/providers?q=netf').set(user.auth).expect(200);
     expect(search.body.items.map((p: { slug: string }) => p.slug)).toEqual(['netflix']);
     await request(app).get('/api/providers/netflix').set(user.auth).expect(200);

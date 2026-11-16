@@ -95,7 +95,11 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
             <>
               <Text variant="bodyMedium">{`Méthode : ${CANCELLATION_METHOD_LABELS[procedure.method]}`}</Text>
               <Text variant="bodyMedium">{procedure.instructions}</Text>
-              <Muted>{`Procédure vérifiée le ${formatDate(procedure.lastVerifiedAt)}. Les parcours des fournisseurs changent : en cas de doute, fiez-vous au site officiel.`}</Muted>
+              <Muted>
+                {procedure.lastVerifiedAt
+                  ? `Procédure vérifiée le ${formatDate(procedure.lastVerifiedAt)}. Les parcours changent : en cas de doute, fiez-vous au site officiel.`
+                  : 'Procédure non vérifiée : indicative seulement, fiez-vous au site officiel du fournisseur.'}
+              </Muted>
             </>
           ) : (
             <Text variant="bodyMedium">{GENERIC_INSTRUCTIONS}</Text>

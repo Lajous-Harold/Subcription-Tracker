@@ -14,7 +14,7 @@ const providerSchema = new Schema(
       url: { type: String, default: null },
       instructions: { type: String, required: true },
       sourceUrl: { type: String, default: null },
-      lastVerifiedAt: { type: String, required: true },
+      lastVerifiedAt: { type: String, default: null },
     },
   },
   { timestamps: true },
@@ -27,7 +27,7 @@ export type ProviderDoc = Omit<InferSchemaType<typeof providerSchema>, 'cancella
     url?: string | null;
     instructions: string;
     sourceUrl?: string | null;
-    lastVerifiedAt: string;
+    lastVerifiedAt?: string | null;
   };
   _id: Types.ObjectId;
 };

@@ -27,7 +27,8 @@ export const CancellationProcedureSchema = z.object({
   instructions: z.string(),
   /** Page consultée pour établir la procédure. */
   sourceUrl: z.string().url().nullable(),
-  lastVerifiedAt: IsoDateSchema,
+  /** Date à laquelle la procédure a été confirmée sur la page officielle ; null si non vérifiée. */
+  lastVerifiedAt: IsoDateSchema.nullable(),
 });
 export type CancellationProcedure = z.infer<typeof CancellationProcedureSchema>;
 

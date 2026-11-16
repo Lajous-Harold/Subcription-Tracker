@@ -4,8 +4,9 @@
  * - `matchPatterns` : expressions testées sur le libellé bancaire normalisé
  *   (majuscules, sans accents, ponctuation remplacée par des espaces).
  * - `cancellation.url` : parcours officiel quand il existe ; `instructions` : toujours présentes.
- * - `lastVerifiedAt` : date de la dernière vérification de `sourceUrl`.
- *   Les liens changent : la date est affichée à l'utilisateur.
+ * - `lastVerifiedAt` : date à laquelle la procédure a été confirmée sur la page officielle (`sourceUrl`).
+ *   `null` = non vérifiée (page inaccessible ou trop générique) : l'application l'indique à l'utilisateur.
+ *   Vérification du 16/11/2026 : spotify, netflix, apple, youtube-premium, adobe, chatgpt, claude, google-one, deezer.
  */
 export interface CatalogEntry {
   slug: string;
@@ -18,11 +19,12 @@ export interface CatalogEntry {
     url: string | null;
     instructions: string;
     sourceUrl: string | null;
-    lastVerifiedAt: string;
+    lastVerifiedAt: string | null;
   };
 }
 
 const VERIFIED = '2026-11-16';
+const UNVERIFIED = null;
 
 const STORE_NOTE =
   ' Si l’abonnement a été souscrit via l’App Store ou Google Play, il se résilie depuis le store (réglages du téléphone > abonnements).';
@@ -54,9 +56,9 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       method: 'online',
       url: 'https://www.deezer.com/account/subscription',
       instructions:
-        'Connectez-vous sur deezer.com, rubrique « Mon abonnement » des paramètres du compte, puis résiliez. Un abonnement souscrit via un opérateur se résilie auprès de cet opérateur.' +
+        'Sur deezer.com : profil > Paramètres du compte > Gérer mon abonnement, puis résiliez et confirmez. Un abonnement souscrit via Apple ou via un partenaire (opérateur) se résilie auprès de celui-ci.' +
         STORE_NOTE,
-      sourceUrl: 'https://support.deezer.com/',
+      sourceUrl: 'https://support.deezer.com/hc/en-gb/articles/214349245-Cancel-Your-Deezer-Subscription',
       lastVerifiedAt: VERIFIED,
     },
   },
@@ -118,7 +120,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
         'Connectez-vous sur disneyplus.com depuis un navigateur, Compte > Abonnement, puis « Résilier l’abonnement ».' +
         STORE_NOTE,
       sourceUrl: 'https://help.disneyplus.com/fr-FR/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -133,7 +135,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Sur amazon.fr, rubrique « Gérer mon abonnement Prime », puis « Mettre fin à l’abonnement » et confirmez chaque étape.',
       sourceUrl: 'https://www.amazon.fr/gp/help/customer/display.html?nodeId=G34EUPKVMYFW8N2U',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -148,7 +150,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis votre espace client Canal+, rubrique de gestion du contrat, utilisez la fonctionnalité de résiliation. Vérifiez la date d’engagement de votre offre avant de résilier.',
       sourceUrl: 'https://client.canalplus.com/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -162,7 +164,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       url: 'https://www.crunchyroll.com/account/membership',
       instructions: 'Sur crunchyroll.com, Paramètres du compte > Abonnement, puis annulez.' + STORE_NOTE,
       sourceUrl: 'https://help.crunchyroll.com/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -175,9 +177,9 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       method: 'online',
       url: 'https://chatgpt.com/#settings/Subscription',
       instructions:
-        'Sur chatgpt.com, menu du profil > Paramètres > Compte (ou Abonnement), puis « Gérer » et annulez. L’accès reste actif jusqu’à la fin de la période payée.' +
+        'Sur chatgpt.com : icône du profil > Paramètres > Facturation, puis « Annuler » sous « Annuler l’offre ». L’accès reste actif jusqu’à la fin de la période payée ; supprimer le compte ne résilie pas un abonnement App Store.' +
         STORE_NOTE,
-      sourceUrl: 'https://help.openai.com/',
+      sourceUrl: 'https://help.openai.com/en/articles/7232927',
       lastVerifiedAt: VERIFIED,
     },
   },
@@ -191,9 +193,9 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       method: 'online',
       url: 'https://claude.ai/settings/billing',
       instructions:
-        'Sur claude.ai, Paramètres > Facturation, puis annulez l’abonnement. L’accès reste actif jusqu’à la fin de la période payée.' +
+        'Sur claude.ai ou Claude Desktop : vos initiales > Paramètres > Facturation, puis « Annuler ». Résiliez au moins 24 h avant la prochaine échéance ; l’accès reste actif jusqu’à la fin de la période payée.' +
         STORE_NOTE,
-      sourceUrl: 'https://support.claude.com/',
+      sourceUrl: 'https://support.claude.com/en/articles/8325617',
       lastVerifiedAt: VERIFIED,
     },
   },
@@ -208,7 +210,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       url: 'https://github.com/settings/billing',
       instructions: 'Sur github.com, Settings > Billing and licensing, puis annulez ou rétrogradez le plan concerné.',
       sourceUrl: 'https://docs.github.com/fr/billing',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -223,7 +225,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Sur account.microsoft.com, rubrique « Services et abonnements », choisissez l’abonnement puis « Gérer » > « Annuler l’abonnement » ou désactivez le renouvellement.',
       sourceUrl: 'https://support.microsoft.com/fr-fr/account-billing',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -236,7 +238,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       method: 'online',
       url: 'https://one.google.com/settings',
       instructions: 'Sur one.google.com, Paramètres > « Annuler l’abonnement ».' + STORE_NOTE,
-      sourceUrl: 'https://support.google.com/googleone/',
+      sourceUrl: 'https://support.google.com/googleone?hl=fr',
       lastVerifiedAt: VERIFIED,
     },
   },
@@ -251,7 +253,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       url: 'https://www.dropbox.com/account/plan',
       instructions: 'Sur dropbox.com, Paramètres > Forfait, puis « Annuler le forfait ».' + STORE_NOTE,
       sourceUrl: 'https://help.dropbox.com/fr-fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -264,7 +266,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       method: 'online',
       url: 'https://account.adobe.com/plans',
       instructions:
-        'Sur account.adobe.com, rubrique Plans, « Gérer le plan » puis « Annuler votre plan ». Attention : des frais d’annulation anticipée peuvent s’appliquer aux plans annuels payés mensuellement.',
+        'Sur account.adobe.com, rubrique Plans, « Gérer le plan » puis « Annuler votre plan ». Le remboursement dépend de la date d’annulation (intégral dans les 14 jours suivant l’achat pour la plupart des plans) : lisez le récapitulatif avant de confirmer.',
       sourceUrl: 'https://helpx.adobe.com/fr/manage-account/using/cancel-subscription.html',
       lastVerifiedAt: VERIFIED,
     },
@@ -281,7 +283,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Dans Notion, Paramètres > Facturation (ou Abonnement) de l’espace de travail, puis rétrogradez vers l’offre gratuite.',
       sourceUrl: 'https://www.notion.com/help',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -296,7 +298,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis la gestion du compte PlayStation (navigateur ou console), rubrique Abonnements, désactivez le renouvellement automatique.',
       sourceUrl: 'https://www.playstation.com/fr-fr/support/subscriptions/cancel-playstation-subscription/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -311,7 +313,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis le Nintendo eShop ou le site du compte Nintendo, rubrique abonnement, désactivez le renouvellement automatique.',
       sourceUrl: 'https://www.nintendo.com/fr-fr/Assistance/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -326,7 +328,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Sur audible.fr (navigateur), Détails du compte > « Résilier l’abonnement ». Utilisez vos crédits restants avant : ils sont perdus à la résiliation.',
       sourceUrl: 'https://www.audible.fr/help',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -341,7 +343,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis votre espace abonné, rubrique de gestion de l’abonnement, utilisez la fonction de résiliation ; à défaut, contactez le service abonnés.',
       sourceUrl: 'https://www.lemonde.fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -356,7 +358,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'L’abonnement se résilie là où il a été souscrit : depuis le store (App Store ou Google Play) pour un achat dans l’application, sinon depuis les paramètres du compte sur duolingo.com.',
       sourceUrl: 'https://support.duolingo.com/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -371,7 +373,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Dans l’application Uber ou Uber Eats : Compte > Uber One > Gérer l’abonnement > Mettre fin à l’abonnement.',
       sourceUrl: 'https://help.uber.com/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -385,7 +387,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       url: null,
       instructions: 'Dans l’application ou sur deliveroo.fr : Compte > Deliveroo Plus > gérer ou annuler l’abonnement.',
       sourceUrl: 'https://deliveroo.fr/fr/faq',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -400,7 +402,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis l’espace membre (site ou application), rubrique abonnement, demandez la résiliation. Vérifiez la durée d’engagement et le préavis prévus par votre contrat.',
       sourceUrl: 'https://www.basic-fit.com/fr-fr',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -415,7 +417,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis l’espace abonné, rubrique de résiliation, ou par lettre recommandée avec accusé de réception. Pensez à la portabilité (code RIO) si vous changez d’opérateur : la résiliation est alors automatique.',
       sourceUrl: 'https://assistance.free.fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -430,7 +432,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis l’espace client, rubrique de gestion de l’offre, utilisez la fonction de résiliation. En cas de changement d’opérateur avec portabilité (code RIO), la résiliation est automatique.',
       sourceUrl: 'https://assistance.orange.fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -445,7 +447,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis l’espace client, rubrique de résiliation de l’offre. En cas de portabilité (code RIO) vers un autre opérateur, la résiliation est automatique.',
       sourceUrl: 'https://assistance.sfr.fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
   {
@@ -460,7 +462,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
       instructions:
         'Depuis l’espace client, rubrique de gestion de la ligne ou de la box, utilisez la fonction de résiliation. La portabilité (code RIO) résilie automatiquement l’ancienne offre.',
       sourceUrl: 'https://www.assistance.bouyguestelecom.fr/',
-      lastVerifiedAt: VERIFIED,
+      lastVerifiedAt: UNVERIFIED,
     },
   },
 ];

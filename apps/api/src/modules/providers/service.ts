@@ -17,7 +17,7 @@ export function toProviderDto(doc: ProviderDoc): Provider {
       url: doc.cancellation.url ?? null,
       instructions: doc.cancellation.instructions,
       sourceUrl: doc.cancellation.sourceUrl ?? null,
-      lastVerifiedAt: doc.cancellation.lastVerifiedAt,
+      lastVerifiedAt: doc.cancellation.lastVerifiedAt ?? null,
     },
   };
 }
