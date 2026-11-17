@@ -2,7 +2,7 @@
 
 Application web et Android qui détecte les abonnements dans les opérations bancaires (via Powens), les fait confirmer par l'utilisateur et aide à suivre leur résiliation. Tout fonctionne aussi sans banque connectée : chaque automatisme a son équivalent manuel.
 
-**État (16/11/2026) :** le MVP est complet et testé, avec 41 tests d'intégration côté API, 22 tests sur le moteur de détection, 4 tests côté app et un parcours web de bout en bout dans un navigateur. **Powens n'est validé que sur des réponses simulées.** La sandbox reste à valider avec de vrais identifiants (voir [Powens](#powens-sandbox)).
+**État (17/11/2026) :** le MVP est complet et testé, avec 55 tests d'intégration côté API (Jest + Supertest), 22 tests sur le moteur de détection, 4 tests côté app et un parcours web de bout en bout dans un navigateur. **Powens n'est validé que sur des réponses simulées.** La sandbox reste à valider avec de vrais identifiants (voir [Powens](#powens-sandbox)).
 
 | Couche  | Choix                                                                                           |
 | ------- | ----------------------------------------------------------------------------------------------- |
@@ -10,7 +10,7 @@ Application web et Android qui détecte les abonnements dans les opérations ban
 | API     | Node 22 + Express 5, REST `/api`, Swagger généré depuis les schémas Zod                         |
 | Données | MongoDB 8 + Mongoose                                                                            |
 | Banque  | Powens (Webview Connect, API 2.0, webhooks HMAC)                                                |
-| Qualité | TypeScript strict, ESLint, Prettier, Vitest, Jest, GitHub Actions, Docker                       |
+| Qualité | TypeScript strict, ESLint, Prettier, Jest + Supertest, GitHub Actions, Docker                   |
 
 ## Démarrage rapide
 
@@ -103,6 +103,10 @@ Le compte rendu technique complet (architecture, modèle de données, flux, risq
 | `npm run seed:providers -w @subtracker/api`                     | Resynchronise le catalogue (aussi fait au démarrage)         |
 
 Tests avec une base existante : `MONGODB_TEST_URI=mongodb://localhost:27017 npm test`.
+
+Tests : Jest + Supertest sur l'application Express importée sans ouvrir de port, avec une base MongoDB de test isolée (créée puis supprimée à chaque fichier). Jest tourne en mode ESM natif (`--experimental-vm-modules`), car l'API est en ESM. Le fichier `apps/api/test/requirements.test.ts` couvre les exigences minimales : parcours CRUD nominal, données invalides (400), accès sans JWT valide (401) et isolation entre deux comptes (404).
+
+Un seul fichier ou un seul test : `npm test -w @subtracker/api -- test/requirements.test.ts -t "isolation"`.
 
 ## Choix et limites du MVP
 
