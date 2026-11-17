@@ -109,7 +109,7 @@ describe('enveloppe d’erreur : codes métier', () => {
     await registerUser(app, 'deja@example.com');
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'deja@example.com', password: 'motdepasse-solide-42' })
+      .send({ email: 'deja@example.com', password: 'MotDePasse-Solide-42' })
       .expect(409);
     expectErrorEnvelope(res, 'EMAIL_ALREADY_USED');
   });

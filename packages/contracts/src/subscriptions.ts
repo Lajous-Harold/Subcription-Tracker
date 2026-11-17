@@ -71,7 +71,7 @@ const LabelSchema = z.string().trim().min(1, 'Libellé requis').max(80);
 const NotesSchema = z.string().trim().max(1000);
 
 export const CreateSubscriptionBodySchema = z
-  .object({
+  .strictObject({
     label: LabelSchema,
     providerId: IdSchema.nullable().optional(),
     customProviderName: z.string().trim().max(80).nullable().optional(),
@@ -88,7 +88,7 @@ export const CreateSubscriptionBodySchema = z
 export type CreateSubscriptionBody = z.infer<typeof CreateSubscriptionBodySchema>;
 
 export const UpdateSubscriptionBodySchema = z
-  .object({
+  .strictObject({
     label: LabelSchema,
     providerId: IdSchema.nullable(),
     customProviderName: z.string().trim().max(80).nullable(),
@@ -131,7 +131,7 @@ export type Payment = z.infer<typeof PaymentSchema>;
 export const PaymentListResponseSchema = z.object({ items: z.array(PaymentSchema) });
 export type PaymentListResponse = z.infer<typeof PaymentListResponseSchema>;
 
-export const CreatePaymentBodySchema = z.object({
+export const CreatePaymentBodySchema = z.strictObject({
   date: IsoDateSchema,
   amountCents: CentsSchema.positive('Le montant doit être positif'),
   currency: CurrencySchema.default('EUR'),
@@ -139,10 +139,10 @@ export const CreatePaymentBodySchema = z.object({
 });
 export type CreatePaymentBody = z.infer<typeof CreatePaymentBodySchema>;
 
-export const LinkPaymentBodySchema = z.object({ transactionId: IdSchema });
+export const LinkPaymentBodySchema = z.strictObject({ transactionId: IdSchema });
 export type LinkPaymentBody = z.infer<typeof LinkPaymentBodySchema>;
 
-export const UpsertCancellationBodySchema = z.object({
+export const UpsertCancellationBodySchema = z.strictObject({
   status: CancellationStatusSchema,
   method: CancellationMethodSchema.nullable().optional(),
   requestedAt: IsoDateSchema.nullable().optional(),

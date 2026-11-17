@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput } from 'react-native-paper';
-import { LoginBodySchema, RegisterBodySchema } from '@subtracker/contracts';
+import { LoginBodySchema, PASSWORD_MIN_LENGTH, RegisterBodySchema } from '@subtracker/contracts';
 import { ErrorText, Muted } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { ApiError, errorMessage } from '@/lib/http';
@@ -74,7 +74,9 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           }
         />
         <ErrorText message={fieldErrors.password} />
-        {isSignUp ? <Muted>Au moins 10 caractères.</Muted> : null}
+        {isSignUp ? (
+          <Muted>{`Au moins ${PASSWORD_MIN_LENGTH} caractères, dont une majuscule, une minuscule, un chiffre et un symbole.`}</Muted>
+        ) : null}
         <ErrorText message={formError} />
         <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={styles.submit}>
           {isSignUp ? 'Créer mon compte' : 'Se connecter'}

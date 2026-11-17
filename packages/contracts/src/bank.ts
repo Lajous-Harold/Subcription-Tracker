@@ -42,7 +42,7 @@ export type BankLinkResponse = z.infer<typeof BankLinkResponseSchema>;
 export const ConnectFlowSchema = z.enum(['connect', 'reconnect', 'manage']);
 export type ConnectFlow = z.infer<typeof ConnectFlowSchema>;
 
-export const CreateConnectSessionBodySchema = z.object({
+export const CreateConnectSessionBodySchema = z.strictObject({
   flow: ConnectFlowSchema,
   platform: ClientPlatformSchema,
 });
@@ -55,7 +55,7 @@ export const ConnectSessionResponseSchema = z.object({
 });
 export type ConnectSessionResponse = z.infer<typeof ConnectSessionResponseSchema>;
 
-export const CompleteConnectSessionBodySchema = z.object({
+export const CompleteConnectSessionBodySchema = z.strictObject({
   state: z.string().min(16).max(256),
   connectionId: z.string().regex(/^\d+$/).optional(),
   error: z.string().max(100).optional(),
@@ -80,7 +80,7 @@ export type BankAccount = z.infer<typeof BankAccountSchema>;
 export const BankAccountListResponseSchema = z.object({ items: z.array(BankAccountSchema) });
 export type BankAccountListResponse = z.infer<typeof BankAccountListResponseSchema>;
 
-export const UpdateBankAccountBodySchema = z.object({ analyzed: z.boolean() });
+export const UpdateBankAccountBodySchema = z.strictObject({ analyzed: z.boolean() });
 export type UpdateBankAccountBody = z.infer<typeof UpdateBankAccountBodySchema>;
 
 export const TransactionSchema = z.object({

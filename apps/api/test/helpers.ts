@@ -10,7 +10,7 @@ export function testApp(overrides: Record<string, string> = {}) {
 export type TestApp = ReturnType<typeof testApp>;
 
 export async function registerUser(app: TestApp, email = `user${Math.random().toString(36).slice(2, 8)}@example.com`) {
-  const password = 'motdepasse-solide-42';
+  const password = 'MotDePasse-Solide-42';
   const res = await request(app)
     .post('/api/auth/register')
     .set('x-client-platform', 'native')

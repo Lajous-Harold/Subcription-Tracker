@@ -18,7 +18,7 @@ describe('auth', () => {
     await registerUser(app, 'bob@example.com');
     await request(app)
       .post('/api/auth/register')
-      .send({ email: 'bob@example.com', password: 'motdepasse-solide-42' })
+      .send({ email: 'bob@example.com', password: 'MotDePasse-Solide-42' })
       .expect(409);
     const res = await request(app)
       .post('/api/auth/register')
@@ -66,7 +66,7 @@ describe('auth', () => {
     const res = await request(app)
       .post('/api/auth/register')
       .set('x-client-platform', 'web')
-      .send({ email: 'web@example.com', password: 'motdepasse-solide-42' })
+      .send({ email: 'web@example.com', password: 'MotDePasse-Solide-42' })
       .expect(201);
     expect(res.body.refreshToken).toBeUndefined();
     const cookie = res.headers['set-cookie']?.[0] ?? '';

@@ -55,3 +55,6 @@ export const ClientPlatformSchema = z.enum(['web', 'native']);
 export type ClientPlatform = z.infer<typeof ClientPlatformSchema>;
 /** Le backend choisit le transport du refresh token (cookie ou corps) d'après cet en-tête. */
 export const CLIENT_PLATFORM_HEADER = 'x-client-platform';
+
+export const HealthResponseSchema = z.object({ status: z.literal('ok') });
+export type HealthResponse = z.infer<typeof HealthResponseSchema>;

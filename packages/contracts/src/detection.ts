@@ -52,7 +52,7 @@ export type CandidateListResponse = z.infer<typeof CandidateListResponseSchema>;
  * Chaque champ fourni devient `declared`.
  * `mergeIntoSubscriptionId` rattache les paiements à un abonnement existant au lieu d'en créer un.
  */
-export const AcceptCandidateBodySchema = z.object({
+export const AcceptCandidateBodySchema = z.strictObject({
   label: z.string().trim().min(1).max(80).optional(),
   providerId: IdSchema.nullable().optional(),
   customProviderName: z.string().trim().max(80).nullable().optional(),
