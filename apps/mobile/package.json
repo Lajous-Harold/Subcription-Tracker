@@ -42,7 +42,8 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "expo-go": "expo start --go --tunnel"
   },
   "private": true,
   "jest": {
