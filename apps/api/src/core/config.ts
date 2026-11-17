@@ -2,6 +2,14 @@ import { z } from 'zod';
 
 const booleanString = z.enum(['true', 'false', '1', '0']).transform((value) => value === 'true' || value === '1');
 
+const POWENS_WEB_CALLBACK_PATH = '/powens/callback';
+const METRO_WEB_ORIGIN = 'http://localhost:8081';
+
+function defaultPowensWebRedirectUri(publicApiUrl: string, apiServesWebApp: boolean): string {
+  const webAppOrigin = apiServesWebApp ? publicApiUrl : METRO_WEB_ORIGIN;
+  return new URL(POWENS_WEB_CALLBACK_PATH, webAppOrigin).toString();
+}
+
 const EnvSchema = z
   .object({
     APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -46,16 +54,21 @@ const EnvSchema = z
     POWENS_WEBVIEW_BASE_URL: z.string().url().default('https://webview.powens.com'),
     POWENS_WEBVIEW_LANG: z.string().default('fr'),
     POWENS_REDIRECT_URI_NATIVE: z.string().default('subtracker://powens/callback'),
-    POWENS_REDIRECT_URI_WEB: z.string().default('http://localhost:8081/powens/callback'),
+    POWENS_REDIRECT_URI_WEB: z.string().optional(),
   })
-  .transform(({ RENDER_EXTERNAL_URL, ...env }) => ({
-    ...env,
-    PUBLIC_API_URL: env.PUBLIC_API_URL ?? RENDER_EXTERNAL_URL ?? 'http://localhost:4000',
-    COOKIE_SECURE: env.COOKIE_SECURE ?? env.APP_ENV === 'production',
-    ENABLE_DEMO_DATA: env.ENABLE_DEMO_DATA ?? env.APP_ENV !== 'production',
-    LOG_LEVEL: env.LOG_LEVEL ?? (env.APP_ENV === 'test' ? 'silent' : 'info'),
-    powensConfigured: Boolean(env.POWENS_DOMAIN && env.POWENS_CLIENT_ID && env.POWENS_CLIENT_SECRET),
-  }));
+  .transform(({ RENDER_EXTERNAL_URL, ...env }) => {
+    const publicApiUrl = env.PUBLIC_API_URL ?? RENDER_EXTERNAL_URL ?? 'http://localhost:4000';
+    return {
+      ...env,
+      PUBLIC_API_URL: publicApiUrl,
+      COOKIE_SECURE: env.COOKIE_SECURE ?? env.APP_ENV === 'production',
+      ENABLE_DEMO_DATA: env.ENABLE_DEMO_DATA ?? env.APP_ENV !== 'production',
+      LOG_LEVEL: env.LOG_LEVEL ?? (env.APP_ENV === 'test' ? 'silent' : 'info'),
+      POWENS_REDIRECT_URI_WEB:
+        env.POWENS_REDIRECT_URI_WEB ?? defaultPowensWebRedirectUri(publicApiUrl, env.WEB_DIST_DIR !== undefined),
+      powensConfigured: Boolean(env.POWENS_DOMAIN && env.POWENS_CLIENT_ID && env.POWENS_CLIENT_SECRET),
+    };
+  });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
 
