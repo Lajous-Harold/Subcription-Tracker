@@ -6,19 +6,19 @@ import { Button, Card, FAB, List, SegmentedButtons, Text } from 'react-native-pa
 import type { Subscription, SubscriptionStatus } from '@subtracker/contracts';
 import { EmptyState, ErrorState, Loading, Muted, OriginChip, Screen, styles } from '@/components/ui';
 import { api } from '@/lib/api';
-import { formatMoney, formatShortDate } from '@/lib/format';
-import { keys } from '@/lib/query';
+import { formatMoney, formatProviderName, formatShortDate } from '@/lib/format';
+import { queryKeys } from '@/lib/query';
 
 type Filter = 'tracked' | 'cancelled' | 'archived';
 
-const FILTERS: Record<Filter, SubscriptionStatus[]> = {
+const STATUSES_BY_FILTER: Record<Filter, SubscriptionStatus[]> = {
   tracked: ['active', 'cancellation_pending'],
   cancelled: ['cancelled'],
   archived: ['archived'],
 };
 
-function describe(sub: Subscription): string {
-  const parts = [sub.provider?.name ?? sub.customProviderName ?? 'Fournisseur non renseigné'];
+function describeSubscription(sub: Subscription): string {
+  const parts = [formatProviderName(sub)];
   if (sub.status === 'cancellation_pending') parts.push('Résiliation en cours');
   else if (sub.nextDueDate) parts.push(`Prochaine échéance ${formatShortDate(sub.nextDueDate.value)}`);
   return parts.join(' · ');
@@ -27,11 +27,11 @@ function describe(sub: Subscription): string {
 export default function SubscriptionsScreen() {
   const [filter, setFilter] = useState<Filter>('tracked');
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: keys.subscriptions,
+    queryKey: queryKeys.subscriptions,
     queryFn: () => api.subscriptions(),
   });
 
-  const items = (data ?? []).filter((sub) => FILTERS[filter].includes(sub.status));
+  const items = (data ?? []).filter((sub) => STATUSES_BY_FILTER[filter].includes(sub.status));
 
   return (
     <View style={{ flex: 1 }}>
@@ -73,7 +73,7 @@ export default function SubscriptionsScreen() {
                 <List.Item
                   key={sub.id}
                   title={sub.label}
-                  description={describe(sub)}
+                  description={describeSubscription(sub)}
                   descriptionNumberOfLines={2}
                   onPress={() => router.push(`/subscriptions/${sub.id}`)}
                   left={(props) => (

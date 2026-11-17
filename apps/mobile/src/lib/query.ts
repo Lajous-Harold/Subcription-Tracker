@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import type { SubscriptionDetail } from '@subtracker/contracts';
 import { ApiError } from './http';
 
 export const queryClient = new QueryClient({
@@ -10,27 +11,43 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** Clés de cache centralisées pour invalider précisément après une mutation. */
-export const keys = {
+export const queryKeys = {
   dashboard: ['dashboard'] as const,
   subscriptions: ['subscriptions'] as const,
   subscription: (id: string) => ['subscriptions', id] as const,
   payments: (id: string) => ['subscriptions', id, 'payments'] as const,
   providers: (q?: string) => ['providers', q ?? ''] as const,
+  provider: (slug: string | undefined) => ['provider', slug] as const,
   candidates: ['candidates'] as const,
+  bank: ['bank'] as const,
   bankLink: ['bank', 'link'] as const,
   bankAccounts: ['bank', 'accounts'] as const,
+  allTransactions: ['transactions'] as const,
   transactions: (q?: string) => ['transactions', q ?? ''] as const,
 };
 
-/** Après toute modification d'abonnement : liste, détail, tableau de bord. */
 export function invalidateSubscriptionData(id?: string) {
-  void queryClient.invalidateQueries({ queryKey: keys.subscriptions });
-  void queryClient.invalidateQueries({ queryKey: keys.dashboard });
-  if (id) void queryClient.invalidateQueries({ queryKey: keys.subscription(id) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+  if (id) void queryClient.invalidateQueries({ queryKey: queryKeys.subscription(id) });
+}
+
+export function storeUpdatedSubscription(updated: SubscriptionDetail) {
+  queryClient.setQueryData(queryKeys.subscription(updated.id), updated);
+  invalidateSubscriptionData(updated.id);
+}
+
+export function invalidatePaymentData(subscriptionId: string) {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.payments(subscriptionId) });
+  invalidateSubscriptionData(subscriptionId);
 }
 
 export function invalidateDetectionData() {
-  void queryClient.invalidateQueries({ queryKey: keys.candidates });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.candidates });
   invalidateSubscriptionData();
+}
+
+export function invalidateBankData() {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.bank });
+  invalidateDetectionData();
 }

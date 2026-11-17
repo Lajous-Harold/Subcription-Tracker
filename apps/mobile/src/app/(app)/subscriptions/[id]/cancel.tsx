@@ -3,7 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Card, HelperText, RadioButton, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Card, RadioButton, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 import {
   IsoDateSchema,
   type CancellationMethod,
@@ -12,13 +12,13 @@ import {
   type SubscriptionDetail,
 } from '@subtracker/contracts';
 import { useToast } from '@/components/toast';
-import { ErrorState, Loading, Muted, Screen, SectionTitle } from '@/components/ui';
+import { ErrorState, ErrorText, Loading, Muted, Screen, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
 import { CANCELLATION_METHOD_LABELS, CANCELLATION_STATUS_LABELS, formatDate } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
-import { invalidateSubscriptionData, keys, queryClient } from '@/lib/query';
+import { queryKeys, storeUpdatedSubscription } from '@/lib/query';
 
-const GENERIC_INSTRUCTIONS =
+const GENERIC_CANCELLATION_INSTRUCTIONS =
   'Cherchez dans votre espace client une rubrique « Abonnement » ou « Résiliation » : les contrats souscrits en ligne doivent en principe pouvoir être résiliés en ligne. À défaut, envoyez une lettre recommandée avec accusé de réception en indiquant vos références client, et conservez la preuve d’envoi.';
 
 const STATUSES: CancellationStatus[] = ['started', 'requested', 'confirmed', 'abandoned'];
@@ -26,10 +26,10 @@ const METHODS = Object.keys(CANCELLATION_METHOD_LABELS) as CancellationMethod[];
 
 export default function CancellationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const subscription = useQuery({ queryKey: keys.subscription(id), queryFn: () => api.subscription(id) });
+  const subscription = useQuery({ queryKey: queryKeys.subscription(id), queryFn: () => api.subscription(id) });
   const slug = subscription.data?.provider?.slug;
   const provider = useQuery({
-    queryKey: ['provider', slug],
+    queryKey: queryKeys.provider(slug),
     queryFn: () => api.provider(slug!),
     enabled: Boolean(slug),
   });
@@ -43,20 +43,19 @@ export default function CancellationScreen() {
 function CancellationForm({ subscription, provider }: { subscription: SubscriptionDetail; provider: Provider | null }) {
   const id = subscription.id;
   const toast = useToast();
-  const current = subscription.cancellation;
-  const [status, setStatus] = useState<CancellationStatus>(current?.status ?? 'started');
+  const tracked = subscription.cancellation;
+  const [status, setStatus] = useState<CancellationStatus>(tracked?.status ?? 'started');
   const [method, setMethod] = useState<CancellationMethod | null>(
-    current?.method ?? provider?.cancellation.method ?? null,
+    tracked?.method ?? provider?.cancellation.method ?? null,
   );
-  const [requestedAt, setRequestedAt] = useState(current?.requestedAt ?? '');
-  const [effectiveDate, setEffectiveDate] = useState(current?.effectiveDate ?? '');
-  const [reference, setReference] = useState(current?.reference ?? '');
-  const [notes, setNotes] = useState(current?.notes ?? '');
+  const [requestedAt, setRequestedAt] = useState(tracked?.requestedAt ?? '');
+  const [effectiveDate, setEffectiveDate] = useState(tracked?.effectiveDate ?? '');
+  const [reference, setReference] = useState(tracked?.reference ?? '');
+  const [notes, setNotes] = useState(tracked?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const onSaved = (updated: SubscriptionDetail) => {
-    queryClient.setQueryData(keys.subscription(id), updated);
-    invalidateSubscriptionData(id);
+    storeUpdatedSubscription(updated);
     toast.show('Suivi de résiliation enregistré');
   };
   const save = useMutation({
@@ -74,6 +73,8 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
   });
   const clear = useMutation({ mutationFn: () => api.clearCancellation(id), onSuccess: onSaved });
   const procedure = provider?.cancellation;
+  const officialHelpUrl = procedure?.sourceUrl;
+  const officialCancellationUrl = procedure?.url;
 
   const submit = () => {
     for (const value of [requestedAt, effectiveDate]) {
@@ -102,15 +103,19 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
               </Muted>
             </>
           ) : (
-            <Text variant="bodyMedium">{GENERIC_INSTRUCTIONS}</Text>
+            <Text variant="bodyMedium">{GENERIC_CANCELLATION_INSTRUCTIONS}</Text>
           )}
         </Card.Content>
         <Card.Actions>
-          {procedure?.sourceUrl ? (
-            <Button onPress={() => WebBrowser.openBrowserAsync(procedure.sourceUrl!)}>Aide officielle</Button>
+          {officialHelpUrl ? (
+            <Button onPress={() => WebBrowser.openBrowserAsync(officialHelpUrl)}>Aide officielle</Button>
           ) : null}
-          {procedure?.url ? (
-            <Button mode="contained" icon="open-in-new" onPress={() => WebBrowser.openBrowserAsync(procedure.url!)}>
+          {officialCancellationUrl ? (
+            <Button
+              mode="contained"
+              icon="open-in-new"
+              onPress={() => WebBrowser.openBrowserAsync(officialCancellationUrl)}
+            >
               Ouvrir le parcours officiel
             </Button>
           ) : null}
@@ -163,11 +168,7 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
             onChangeText={setReference}
           />
           <TextInput label="Notes" mode="outlined" value={notes} onChangeText={setNotes} multiline />
-          {error ? (
-            <HelperText type="error" visible>
-              {error}
-            </HelperText>
-          ) : null}
+          <ErrorText message={error} />
         </Card.Content>
         <Card.Actions>
           {subscription.cancellation ? (

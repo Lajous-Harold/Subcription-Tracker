@@ -16,9 +16,10 @@ import {
   formatDate,
   formatDateTime,
   formatMoney,
+  formatProviderName,
 } from '@/lib/format';
-import { errorMessage } from '@/lib/http';
-import { invalidateSubscriptionData, keys, queryClient } from '@/lib/query';
+import { invalidatePaymentData, invalidateSubscriptionData, queryKeys, storeUpdatedSubscription } from '@/lib/query';
+import { DESTRUCTIVE_COLOR } from '@/lib/theme';
 
 const EVENT_LABELS: Record<string, string> = {
   created: 'Abonnement déclaré',
@@ -82,14 +83,13 @@ function SourcedRow({
 
 function PaymentRow({ payment, subscriptionId }: { payment: Payment; subscriptionId: string }) {
   const toast = useToast();
-  const remove = useMutation({
+  const removePayment = useMutation({
     mutationFn: () => api.deletePayment(subscriptionId, payment.id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: keys.payments(subscriptionId) });
-      invalidateSubscriptionData(subscriptionId);
+      invalidatePaymentData(subscriptionId);
       toast.show(payment.source === 'bank' ? 'Opération détachée' : 'Paiement supprimé');
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
   return (
     <List.Item
@@ -107,8 +107,8 @@ function PaymentRow({ payment, subscriptionId }: { payment: Payment; subscriptio
       right={() => (
         <IconButton
           icon={payment.source === 'bank' ? 'link-off' : 'delete-outline'}
-          onPress={() => remove.mutate()}
-          disabled={remove.isPending}
+          onPress={() => removePayment.mutate()}
+          disabled={removePayment.isPending}
           accessibilityLabel={payment.source === 'bank' ? 'Détacher l’opération' : 'Supprimer le paiement'}
         />
       )}
@@ -119,36 +119,35 @@ function PaymentRow({ payment, subscriptionId }: { payment: Payment; subscriptio
 export default function SubscriptionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const toast = useToast();
-  const [paymentOpen, setPaymentOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const subscription = useQuery({ queryKey: keys.subscription(id), queryFn: () => api.subscription(id) });
-  const payments = useQuery({ queryKey: keys.payments(id), queryFn: () => api.payments(id) });
+  const subscription = useQuery({ queryKey: queryKeys.subscription(id), queryFn: () => api.subscription(id) });
+  const payments = useQuery({ queryKey: queryKeys.payments(id), queryFn: () => api.payments(id) });
 
   const onUpdated = (message: string) => (updated: SubscriptionDetail) => {
-    queryClient.setQueryData(keys.subscription(id), updated);
-    invalidateSubscriptionData(id);
+    storeUpdatedSubscription(updated);
     toast.show(message);
   };
   const reset = useMutation({
     mutationFn: (field: ResettableField) => api.resetField(id, field),
     onSuccess: onUpdated('Remis en automatique'),
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
-  const setStatus = useMutation({
+  const changeStatus = useMutation({
     mutationFn: (status: 'active' | 'archived') => api.updateSubscription(id, { status }),
     onSuccess: onUpdated('Statut mis à jour'),
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
-  const remove = useMutation({
+  const stopTracking = useMutation({
     mutationFn: () => api.deleteSubscription(id),
     onSuccess: () => {
       invalidateSubscriptionData(id);
       toast.show('Abonnement retiré de l’application');
       router.back();
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
 
   if (subscription.isLoading) return <Loading />;
@@ -182,12 +181,7 @@ export default function SubscriptionDetailScreen() {
             </Text>
             <Chip compact>{STATUS_LABELS[sub.status]}</Chip>
           </View>
-          <Muted>
-            {[
-              sub.provider?.name ?? sub.customProviderName ?? 'Fournisseur non renseigné',
-              sub.bankLinked ? 'Lié à la banque' : 'Suivi manuel',
-            ].join(' · ')}
-          </Muted>
+          <Muted>{[formatProviderName(sub), sub.bankLinked ? 'Lié à la banque' : 'Suivi manuel'].join(' · ')}</Muted>
         </Card.Content>
         <SourcedRow
           title="Montant mensuel"
@@ -263,7 +257,7 @@ export default function SubscriptionDetailScreen() {
           (payments.data ?? []).map((payment) => <PaymentRow key={payment.id} payment={payment} subscriptionId={id} />)
         )}
         <Card.Actions>
-          <Button icon="plus" onPress={() => setPaymentOpen(true)}>
+          <Button icon="plus" onPress={() => setPaymentDialogOpen(true)}>
             Paiement manuel
           </Button>
           <Button icon="link-variant" onPress={() => router.push(`/subscriptions/${id}/link-payment`)}>
@@ -275,7 +269,7 @@ export default function SubscriptionDetailScreen() {
       <List.Accordion
         title="Historique des modifications"
         expanded={historyOpen}
-        onPress={() => setHistoryOpen((v) => !v)}
+        onPress={() => setHistoryOpen((open) => !open)}
       >
         {sub.events.map((event, index) => (
           <List.Item
@@ -289,15 +283,15 @@ export default function SubscriptionDetailScreen() {
       <Divider />
       <View style={styles.row}>
         {sub.status === 'archived' ? (
-          <Button icon="restore" onPress={() => setStatus.mutate('active')}>
+          <Button icon="restore" onPress={() => changeStatus.mutate('active')}>
             Réactiver le suivi
           </Button>
         ) : (
-          <Button icon="archive-outline" onPress={() => setStatus.mutate('archived')}>
+          <Button icon="archive-outline" onPress={() => changeStatus.mutate('archived')}>
             Archiver
           </Button>
         )}
-        <Button icon="delete-outline" textColor="#C62828" onPress={() => setDeleteOpen(true)}>
+        <Button icon="delete-outline" textColor={DESTRUCTIVE_COLOR} onPress={() => setDeleteDialogOpen(true)}>
           Ne plus suivre
         </Button>
       </View>
@@ -306,18 +300,18 @@ export default function SubscriptionDetailScreen() {
         subscriptionId={id}
         defaultCents={sub.amount.value.cents}
         currency={sub.amount.value.currency}
-        visible={paymentOpen}
-        onDismiss={() => setPaymentOpen(false)}
+        visible={paymentDialogOpen}
+        onDismiss={() => setPaymentDialogOpen(false)}
       />
       <ConfirmDialog
-        visible={deleteOpen}
+        visible={deleteDialogOpen}
         title="Ne plus suivre cet abonnement ?"
         message="L’abonnement et ses paiements seront retirés de l’application. Cela ne résilie PAS votre contrat auprès du fournisseur."
         confirmLabel="Retirer"
         destructive
-        loading={remove.isPending}
-        onConfirm={() => remove.mutate()}
-        onDismiss={() => setDeleteOpen(false)}
+        loading={stopTracking.isPending}
+        onConfirm={() => stopTracking.mutate()}
+        onDismiss={() => setDeleteDialogOpen(false)}
       />
     </Screen>
   );

@@ -1,9 +1,9 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import { Button, HelperText, Surface, Text, TextInput } from 'react-native-paper';
+import { Button, Surface, Text, TextInput } from 'react-native-paper';
 import { LoginBodySchema, RegisterBodySchema } from '@subtracker/contracts';
-import { FieldError, Muted } from '@/components/ui';
+import { ErrorText, Muted } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { ApiError, errorMessage } from '@/lib/http';
 
@@ -13,12 +13,12 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isSignUp = mode === 'sign-up';
 
   const submit = async () => {
-    setError(null);
+    setFormError(null);
     const parsed = (isSignUp ? RegisterBodySchema : LoginBodySchema).safeParse({ email, password });
     if (!parsed.success) {
       setFieldErrors(Object.fromEntries(parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message])));
@@ -31,7 +31,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       else await signIn(parsed.data.email, parsed.data.password);
     } catch (caught) {
       if (caught instanceof ApiError) setFieldErrors(caught.fieldErrors);
-      setError(errorMessage(caught));
+      setFormError(errorMessage(caught));
     } finally {
       setSubmitting(false);
     }
@@ -55,7 +55,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           keyboardType="email-address"
           error={Boolean(fieldErrors.email)}
         />
-        <FieldError message={fieldErrors.email} />
+        <ErrorText message={fieldErrors.email} />
         <TextInput
           label="Mot de passe"
           mode="outlined"
@@ -73,13 +73,9 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
             />
           }
         />
-        <FieldError message={fieldErrors.password} />
+        <ErrorText message={fieldErrors.password} />
         {isSignUp ? <Muted>Au moins 10 caractères.</Muted> : null}
-        {error ? (
-          <HelperText type="error" visible>
-            {error}
-          </HelperText>
-        ) : null}
+        <ErrorText message={formError} />
         <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={styles.submit}>
           {isSignUp ? 'Créer mon compte' : 'Se connecter'}
         </Button>

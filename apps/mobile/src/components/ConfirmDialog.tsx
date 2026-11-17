@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { DESTRUCTIVE_COLOR } from '@/lib/theme';
+import { styles } from './ui';
 
 export function ConfirmDialog({
   visible,
@@ -24,7 +26,7 @@ export function ConfirmDialog({
 }) {
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={onDismiss} style={{ maxWidth: 480, alignSelf: 'center', width: '92%' }}>
+      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{title}</Dialog.Title>
         <Dialog.Content style={{ gap: 8 }}>
           <Text variant="bodyMedium">{message}</Text>
@@ -36,7 +38,7 @@ export function ConfirmDialog({
             onPress={onConfirm}
             loading={loading}
             disabled={loading}
-            textColor={destructive ? '#C62828' : undefined}
+            textColor={destructive ? DESTRUCTIVE_COLOR : undefined}
           >
             {confirmLabel}
           </Button>

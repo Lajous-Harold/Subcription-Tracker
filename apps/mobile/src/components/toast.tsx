@@ -1,8 +1,10 @@
 import { createContext, use, useCallback, useMemo, useState, type PropsWithChildren } from 'react';
 import { Snackbar } from 'react-native-paper';
+import { errorMessage } from '@/lib/http';
 
 interface ToastContextValue {
   show: (message: string) => void;
+  showError: (error: unknown) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -16,7 +18,8 @@ export function useToast(): ToastContextValue {
 export function ToastProvider({ children }: PropsWithChildren) {
   const [message, setMessage] = useState<string | null>(null);
   const show = useCallback((text: string) => setMessage(text), []);
-  const value = useMemo(() => ({ show }), [show]);
+  const showError = useCallback((error: unknown) => setMessage(errorMessage(error)), []);
+  const value = useMemo(() => ({ show, showError }), [show, showError]);
   return (
     <ToastContext value={value}>
       {children}

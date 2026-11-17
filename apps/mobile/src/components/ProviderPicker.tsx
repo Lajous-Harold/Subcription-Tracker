@@ -4,15 +4,14 @@ import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, List, Portal, Searchbar, TextInput } from 'react-native-paper';
 import type { ProviderSummary } from '@subtracker/contracts';
 import { api } from '@/lib/api';
-import { keys } from '@/lib/query';
-import { Muted } from './ui';
+import { queryKeys } from '@/lib/query';
+import { Muted, styles } from './ui';
 
 export interface ProviderValue {
   provider: ProviderSummary | null;
   customName: string;
 }
 
-/** Fournisseur connu (catalogue) ou nom libre : l'un ou l'autre. */
 export function ProviderPicker({
   value,
   onChange,
@@ -20,10 +19,12 @@ export function ProviderPicker({
   value: ProviderValue;
   onChange: (value: ProviderValue) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const { data: providers = [] } = useQuery({ queryKey: keys.providers(), queryFn: () => api.providers() });
-  const filtered = providers.filter((provider) => provider.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const { data: providers = [] } = useQuery({ queryKey: queryKeys.providers(), queryFn: () => api.providers() });
+  const matchingProviders = providers.filter((provider) =>
+    provider.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   return (
     <View style={{ gap: 8 }}>
@@ -46,35 +47,35 @@ export function ProviderPicker({
       <Button
         mode="outlined"
         icon="format-list-bulleted"
-        onPress={() => setOpen(true)}
+        onPress={() => setCatalogOpen(true)}
         style={{ alignSelf: 'flex-start' }}
       >
         {value.provider ? 'Changer de fournisseur' : 'Choisir dans le catalogue'}
       </Button>
       <Portal>
         <Dialog
-          visible={open}
-          onDismiss={() => setOpen(false)}
-          style={{ maxWidth: 520, alignSelf: 'center', width: '92%' }}
+          visible={catalogOpen}
+          onDismiss={() => setCatalogOpen(false)}
+          style={[styles.dialog, { maxWidth: 520 }]}
         >
           <Dialog.Title>Fournisseur</Dialog.Title>
           <Dialog.Content>
-            <Searchbar placeholder="Rechercher" value={query} onChangeText={setQuery} />
+            <Searchbar placeholder="Rechercher" value={search} onChangeText={setSearch} />
           </Dialog.Content>
           <Dialog.ScrollArea style={{ maxHeight: 360, paddingHorizontal: 0 }}>
             <ScrollView>
-              {filtered.map((provider) => (
+              {matchingProviders.map((provider) => (
                 <List.Item
                   key={provider.id}
                   title={provider.name}
                   onPress={() => {
                     onChange({ provider, customName: '' });
-                    setOpen(false);
+                    setCatalogOpen(false);
                   }}
                   left={(props) => <List.Icon {...props} icon="store-outline" />}
                 />
               ))}
-              {filtered.length === 0 ? (
+              {matchingProviders.length === 0 ? (
                 <View style={{ padding: 16 }}>
                   <Muted>Introuvable ? Fermez et saisissez un nom libre.</Muted>
                 </View>
@@ -82,7 +83,7 @@ export function ProviderPicker({
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setOpen(false)}>Fermer</Button>
+            <Button onPress={() => setCatalogOpen(false)}>Fermer</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

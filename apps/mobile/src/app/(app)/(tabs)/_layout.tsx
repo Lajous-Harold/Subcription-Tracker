@@ -4,7 +4,7 @@ import { useTheme } from 'react-native-paper';
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
-function icon(name: IconName) {
+function tabIcon(name: IconName) {
   function TabIcon({ color, size }: { color: unknown; size: number }) {
     return <MaterialCommunityIcons name={name} color={color as string} size={size} />;
   }
@@ -17,11 +17,11 @@ export default function TabsLayout() {
     <Tabs screenOptions={{ tabBarActiveTintColor: theme.colors.primary }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Tableau de bord', tabBarLabel: 'Accueil', tabBarIcon: icon('view-dashboard-outline') }}
+        options={{ title: 'Tableau de bord', tabBarLabel: 'Accueil', tabBarIcon: tabIcon('view-dashboard-outline') }}
       />
-      <Tabs.Screen name="subscriptions" options={{ title: 'Abonnements', tabBarIcon: icon('repeat') }} />
-      <Tabs.Screen name="bank" options={{ title: 'Banque', tabBarIcon: icon('bank-outline') }} />
-      <Tabs.Screen name="account" options={{ title: 'Compte', tabBarIcon: icon('account-circle-outline') }} />
+      <Tabs.Screen name="subscriptions" options={{ title: 'Abonnements', tabBarIcon: tabIcon('repeat') }} />
+      <Tabs.Screen name="bank" options={{ title: 'Banque', tabBarIcon: tabIcon('bank-outline') }} />
+      <Tabs.Screen name="account" options={{ title: 'Compte', tabBarIcon: tabIcon('account-circle-outline') }} />
     </Tabs>
   );
 }

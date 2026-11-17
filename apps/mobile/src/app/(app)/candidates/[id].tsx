@@ -1,21 +1,20 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Button, Card, HelperText, TextInput } from 'react-native-paper';
+import { Button, Card, TextInput } from 'react-native-paper';
 import { parseAmountToCents, type AcceptCandidateBody, type Candidate } from '@subtracker/contracts';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
 import { useToast } from '@/components/toast';
-import { EmptyState, ErrorState, Loading, Muted, Screen } from '@/components/ui';
+import { EmptyState, ErrorState, ErrorText, Loading, Muted, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
-import { invalidateDetectionData, keys } from '@/lib/query';
+import { invalidateDetectionData, queryKeys } from '@/lib/query';
 
-/** Corriger une détection avant de la confirmer : chaque valeur modifiée devient « Déclaré ». */
 export default function CandidateReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, isLoading, refetch } = useQuery({
-    queryKey: keys.candidates,
+    queryKey: queryKeys.candidates,
     queryFn: () => api.candidates('pending'),
   });
   const candidate = data?.find((item) => item.id === id);
@@ -52,6 +51,7 @@ function CandidateReviewForm({ candidate }: { candidate: Candidate }) {
   });
 
   const submit = () => {
+    // N'envoie que les valeurs modifiées : elles seules passent en « Déclaré ».
     const body: AcceptCandidateBody = {};
     if (label.trim() && label.trim() !== candidate.label) body.label = label.trim();
     const providerId = provider.provider?.id ?? null;
@@ -92,11 +92,7 @@ function CandidateReviewForm({ candidate }: { candidate: Candidate }) {
             Les valeurs que vous modifiez sont marquées « Déclaré » ; les autres restent « Observé » et suivront vos
             prochains paiements.
           </Muted>
-          {formError ? (
-            <HelperText type="error" visible>
-              {formError}
-            </HelperText>
-          ) : null}
+          <ErrorText message={formError} />
         </Card.Content>
         <Card.Actions>
           <Button mode="contained" onPress={submit} loading={accept.isPending} disabled={accept.isPending}>

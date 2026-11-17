@@ -15,11 +15,11 @@ export interface CallbackParams {
  * Une même redirection peut arriver deux fois sur Android (retour de l'onglet + lien profond).
  * Le `state` étant à usage unique côté API, on partage la promesse de finalisation par `state`.
  */
-const completions = new Map<string, Promise<BankLink>>();
+const completionsByState = new Map<string, Promise<BankLink>>();
 
 export function completeConnectCallback(params: CallbackParams): Promise<BankLink> {
   if (!params.state) return Promise.reject(new Error('Retour de connexion incomplet (state manquant)'));
-  const existing = completions.get(params.state);
+  const existing = completionsByState.get(params.state);
   if (existing) return existing;
   const promise = api.completeConnectSession({
     state: params.state,
@@ -27,11 +27,11 @@ export function completeConnectCallback(params: CallbackParams): Promise<BankLin
     error: params.error,
     errorDescription: params.error_description,
   });
-  completions.set(params.state, promise);
+  completionsByState.set(params.state, promise);
   return promise;
 }
 
-export type ConnectOutcome = { kind: 'completed'; link: BankLink } | { kind: 'cancelled' } | { kind: 'redirected' };
+type ConnectOutcome = { kind: 'completed'; link: BankLink } | { kind: 'cancelled' } | { kind: 'redirected' };
 
 /**
  * Ouvre le parcours officiel Powens :

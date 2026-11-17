@@ -7,8 +7,7 @@ import { useToast } from '@/components/toast';
 import { EmptyState, ErrorState, Loading, Muted, Screen, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { CONFIDENCE_LABELS, formatDate, formatMoney } from '@/lib/format';
-import { errorMessage } from '@/lib/http';
-import { invalidateDetectionData, keys } from '@/lib/query';
+import { invalidateDetectionData, queryKeys } from '@/lib/query';
 
 function CandidateCard({ candidate }: { candidate: Candidate }) {
   const toast = useToast();
@@ -23,7 +22,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
       invalidateDetectionData();
       toast.show(`« ${sub.label} » ajouté à vos abonnements`);
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
   const reject = useMutation({
     mutationFn: () => api.rejectCandidate(candidate.id),
@@ -31,9 +30,9 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
       invalidateDetectionData();
       toast.show('Rejeté : il ne sera plus proposé');
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
-  const levelColor =
+  const confidenceColor =
     candidate.level === 'high'
       ? theme.colors.primaryContainer
       : candidate.level === 'medium'
@@ -53,7 +52,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
       />
       <Card.Content style={{ gap: 6 }}>
         <View style={styles.row}>
-          <Chip compact style={{ backgroundColor: levelColor }}>
+          <Chip compact style={{ backgroundColor: confidenceColor }}>
             {`${CONFIDENCE_LABELS[candidate.level]} (${Math.round(candidate.confidence * 100)} %)`}
           </Chip>
           {candidate.stale ? (
@@ -88,16 +87,16 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
 export default function CandidatesScreen() {
   const toast = useToast();
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: keys.candidates,
+    queryKey: queryKeys.candidates,
     queryFn: () => api.candidates('pending'),
   });
-  const rerun = useMutation({
+  const rerunDetection = useMutation({
     mutationFn: api.runDetection,
     onSuccess: (result) => {
       invalidateDetectionData();
       toast.show(`${result.analyzedTransactions} opérations analysées, ${result.created} nouvelle(s) détection(s)`);
     },
-    onError: (caught) => toast.show(errorMessage(caught)),
+    onError: toast.showError,
   });
 
   if (isLoading) return <Loading />;
@@ -115,7 +114,12 @@ export default function CandidatesScreen() {
             title="Rien à vérifier"
             description="Les nouvelles détections apparaîtront ici après chaque synchronisation."
           >
-            <Button mode="outlined" icon="refresh" onPress={() => rerun.mutate()} loading={rerun.isPending}>
+            <Button
+              mode="outlined"
+              icon="refresh"
+              onPress={() => rerunDetection.mutate()}
+              loading={rerunDetection.isPending}
+            >
               Relancer la détection
             </Button>
           </EmptyState>

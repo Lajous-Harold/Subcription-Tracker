@@ -9,18 +9,8 @@ import { invalidateSubscriptionData } from '@/lib/query';
 
 export default function NewSubscriptionScreen() {
   const toast = useToast();
-  const mutation = useMutation({
-    mutationFn: (values: SubscriptionFormValues) =>
-      api.createSubscription({
-        label: values.label,
-        providerId: values.providerId,
-        customProviderName: values.customProviderName,
-        amountCents: values.amountCents,
-        currency: values.currency,
-        billingDay: values.billingDay,
-        nextDueDate: values.nextDueDate,
-        notes: values.notes,
-      }),
+  const createSubscription = useMutation({
+    mutationFn: (values: SubscriptionFormValues) => api.createSubscription(values),
     onSuccess: (created) => {
       invalidateSubscriptionData();
       toast.show('Abonnement ajouté');
@@ -32,9 +22,9 @@ export default function NewSubscriptionScreen() {
     <Screen>
       <SubscriptionForm
         submitLabel="Ajouter"
-        submitting={mutation.isPending}
-        serverError={mutation.error ? errorMessage(mutation.error) : null}
-        onSubmit={(values) => mutation.mutate(values)}
+        submitting={createSubscription.isPending}
+        serverError={createSubscription.error ? errorMessage(createSubscription.error) : null}
+        onSubmit={(values) => createSubscription.mutate(values)}
       />
     </Screen>
   );

@@ -4,21 +4,19 @@ import { View } from 'react-native';
 import { Banner, Button, Card, List, Text } from 'react-native-paper';
 import { EmptyState, ErrorState, Loading, Muted, OriginChip, Screen, SectionTitle, styles } from '@/components/ui';
 import { api } from '@/lib/api';
-import { BANK_STATUS_LABELS, formatMoney, formatShortDate } from '@/lib/format';
-import { keys } from '@/lib/query';
+import { BANK_STATUS_LABELS, formatMoney, formatShortDate, needsBankReconnection } from '@/lib/format';
+import { queryKeys } from '@/lib/query';
 
 export default function DashboardScreen() {
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: keys.dashboard,
+    queryKey: queryKeys.dashboard,
     queryFn: api.dashboard,
   });
 
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
-  const bankNeedsAction =
-    data.bank &&
-    (data.bank.status === 'action_required' || data.bank.status === 'error' || data.bank.consentExpiringSoon);
+  const { bank } = data;
 
   return (
     <Screen refreshing={isRefetching} onRefresh={refetch}>
@@ -33,11 +31,11 @@ export default function DashboardScreen() {
             : `${data.pendingCandidates} abonnements détectés attendent votre confirmation.`}
         </Banner>
       ) : null}
-      {bankNeedsAction ? (
+      {bank && needsBankReconnection(bank) ? (
         <Banner visible icon="bank-remove" actions={[{ label: 'Voir', onPress: () => router.push('/bank') }]}>
-          {data.bank?.consentExpiringSoon
+          {bank.consentExpiringSoon
             ? 'Votre autorisation bancaire expire bientôt : renouvelez-la pour continuer la détection.'
-            : `Connexion bancaire : ${BANK_STATUS_LABELS[data.bank!.status].toLowerCase()}.`}
+            : `Connexion bancaire : ${BANK_STATUS_LABELS[bank.status].toLowerCase()}.`}
         </Banner>
       ) : null}
       {data.missingPayments > 0 ? (
@@ -78,7 +76,7 @@ export default function DashboardScreen() {
               </View>
               {data.excludedOtherCurrencies.length > 0 ? (
                 <Muted>
-                  {`Hors total : ${data.excludedOtherCurrencies.map((c) => `${c.count} en ${c.currency}`).join(', ')}.`}
+                  {`Hors total : ${data.excludedOtherCurrencies.map((excluded) => `${excluded.count} en ${excluded.currency}`).join(', ')}.`}
                 </Muted>
               ) : null}
             </Card.Content>

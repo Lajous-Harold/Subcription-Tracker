@@ -7,21 +7,22 @@ import { Muted, Screen, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { API_URL } from '@/lib/config';
-import { applyAuthResponse, errorMessage } from '@/lib/http';
+import { applyAuthResponse } from '@/lib/http';
+import { DESTRUCTIVE_COLOR } from '@/lib/theme';
 
 export default function AccountScreen() {
   const { user, signOut } = useAuth();
   const toast = useToast();
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [password, setPassword] = useState('');
 
-  const remove = useMutation({
+  const deleteAccount = useMutation({
     mutationFn: () => api.deleteAccount(password),
     onSuccess: async () => {
-      setDeleteOpen(false);
+      setDeleteDialogOpen(false);
       await applyAuthResponse(null);
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
 
   return (
@@ -64,7 +65,7 @@ export default function AccountScreen() {
           </Muted>
         </Card.Content>
         <Card.Actions>
-          <Button icon="delete-forever" textColor="#C62828" onPress={() => setDeleteOpen(true)}>
+          <Button icon="delete-forever" textColor={DESTRUCTIVE_COLOR} onPress={() => setDeleteDialogOpen(true)}>
             Supprimer mon compte
           </Button>
         </Card.Actions>
@@ -72,14 +73,14 @@ export default function AccountScreen() {
       <Muted style={{ textAlign: 'center' }}>{`API : ${API_URL}`}</Muted>
 
       <ConfirmDialog
-        visible={deleteOpen}
+        visible={deleteDialogOpen}
         title="Supprimer définitivement le compte ?"
         message="Toutes vos données seront effacées. Vos contrats chez les fournisseurs ne seront pas résiliés."
         confirmLabel="Supprimer"
         destructive
-        loading={remove.isPending}
-        onConfirm={() => remove.mutate()}
-        onDismiss={() => setDeleteOpen(false)}
+        loading={deleteAccount.isPending}
+        onConfirm={() => deleteAccount.mutate()}
+        onDismiss={() => setDeleteDialogOpen(false)}
       >
         <TextInput label="Mot de passe" mode="outlined" secureTextEntry value={password} onChangeText={setPassword} />
       </ConfirmDialog>

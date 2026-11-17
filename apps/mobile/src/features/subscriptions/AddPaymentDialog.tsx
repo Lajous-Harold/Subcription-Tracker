@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Button, Dialog, HelperText, Portal, TextInput } from 'react-native-paper';
+import { Button, Dialog, Portal, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, todayIso } from '@subtracker/contracts';
+import { ErrorText, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
-import { invalidateSubscriptionData, keys, queryClient } from '@/lib/query';
+import { invalidatePaymentData } from '@/lib/query';
 
-/** Alternative manuelle à l'import bancaire : déclarer un paiement. */
 export function AddPaymentDialog({
   subscriptionId,
   defaultCents,
@@ -26,12 +26,11 @@ export function AddPaymentDialog({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const mutation = useMutation({
+  const addPayment = useMutation({
     mutationFn: (body: { date: string; amountCents: number }) =>
       api.addPayment(subscriptionId, { ...body, currency, note: note.trim() || null }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: keys.payments(subscriptionId) });
-      invalidateSubscriptionData(subscriptionId);
+      invalidatePaymentData(subscriptionId);
       setNote('');
       onDismiss();
     },
@@ -43,12 +42,12 @@ export function AddPaymentDialog({
     if (!IsoDateSchema.safeParse(date).success) return setError('Date au format AAAA-MM-JJ');
     if (cents === null || cents <= 0) return setError('Montant invalide');
     setError(null);
-    mutation.mutate({ date, amountCents: cents });
+    addPayment.mutate({ date, amountCents: cents });
   };
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={onDismiss} style={{ maxWidth: 480, alignSelf: 'center', width: '92%' }}>
+      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Ajouter un paiement</Dialog.Title>
         <Dialog.Content style={{ gap: 8 }}>
           <TextInput label="Date (AAAA-MM-JJ)" mode="outlined" value={date} onChangeText={setDate} />
@@ -60,15 +59,11 @@ export function AddPaymentDialog({
             keyboardType="decimal-pad"
           />
           <TextInput label="Note (facultatif)" mode="outlined" value={note} onChangeText={setNote} />
-          {error ? (
-            <HelperText type="error" visible>
-              {error}
-            </HelperText>
-          ) : null}
+          <ErrorText message={error} />
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Annuler</Button>
-          <Button onPress={submit} loading={mutation.isPending} disabled={mutation.isPending}>
+          <Button onPress={submit} loading={addPayment.isPending} disabled={addPayment.isPending}>
             Ajouter
           </Button>
         </Dialog.Actions>

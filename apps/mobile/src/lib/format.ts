@@ -1,11 +1,19 @@
 import type {
+  BankLink,
   BankLinkStatus,
   CancellationMethod,
   CancellationStatus,
   ConfidenceLevel,
   Origin,
+  Subscription,
   SubscriptionStatus,
 } from '@subtracker/contracts';
+
+const CIVIL_DATE_LENGTH = 'YYYY-MM-DD'.length;
+
+function toUtcDate(value: string): Date {
+  return new Date(value.length === CIVIL_DATE_LENGTH ? `${value}T00:00:00Z` : value);
+}
 
 export function formatMoney(cents: number, currency = 'EUR'): string {
   try {
@@ -17,16 +25,14 @@ export function formatMoney(cents: number, currency = 'EUR'): string {
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
-  const iso = value.length === 10 ? `${value}T00:00:00Z` : value;
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(iso),
+    toUtcDate(value),
   );
 }
 
 export function formatShortDate(value: string | null | undefined): string {
   if (!value) return '—';
-  const iso = value.length === 10 ? `${value}T00:00:00Z` : value;
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso));
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(toUtcDate(value));
 }
 
 export function formatDateTime(value: string | null | undefined): string {
@@ -36,6 +42,10 @@ export function formatDateTime(value: string | null | undefined): string {
 
 export function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',');
+}
+
+export function formatProviderName(subscription: Pick<Subscription, 'provider' | 'customProviderName'>): string {
+  return subscription.provider?.name ?? subscription.customProviderName ?? 'Fournisseur non renseigné';
 }
 
 export const ORIGIN_LABELS: Record<Origin, string> = {
@@ -99,3 +109,7 @@ export const BANK_STATUS_HELP: Record<BankLinkStatus, string> = {
   error: 'Un problème inattendu est survenu. Essayez de vous reconnecter, ou suivez vos abonnements manuellement.',
   disconnected: 'La connexion a été supprimée. Connectez à nouveau votre banque pour reprendre la détection.',
 };
+
+export function needsBankReconnection(bank: Pick<BankLink, 'status' | 'consentExpiringSoon'>): boolean {
+  return bank.status === 'action_required' || bank.status === 'error' || bank.consentExpiringSoon;
+}

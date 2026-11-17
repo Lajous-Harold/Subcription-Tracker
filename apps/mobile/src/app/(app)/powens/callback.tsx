@@ -4,7 +4,7 @@ import { Button } from 'react-native-paper';
 import { EmptyState, Loading, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/http';
 import { completeConnectCallback, type CallbackParams } from '@/lib/powens-connect';
-import { invalidateDetectionData, queryClient } from '@/lib/query';
+import { invalidateBankData } from '@/lib/query';
 
 /**
  * Retour de la Webview Powens : `?connection_id=…&state=…` ou `?error=…&error_description=…`.
@@ -13,15 +13,14 @@ import { invalidateDetectionData, queryClient } from '@/lib/query';
 export default function PowensCallbackScreen() {
   const params = useLocalSearchParams<Record<keyof CallbackParams, string>>();
   const [error, setError] = useState<string | null>(null);
-  const handled = useRef(false);
+  const callbackHandled = useRef(false);
 
   useEffect(() => {
-    if (handled.current) return;
-    handled.current = true;
+    if (callbackHandled.current) return;
+    callbackHandled.current = true;
     completeConnectCallback(params)
       .then(() => {
-        void queryClient.invalidateQueries({ queryKey: ['bank'] });
-        invalidateDetectionData();
+        invalidateBankData();
         router.replace('/bank');
       })
       .catch((caught) => setError(errorMessage(caught)));

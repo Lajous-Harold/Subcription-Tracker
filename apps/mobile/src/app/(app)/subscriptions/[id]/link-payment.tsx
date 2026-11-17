@@ -6,65 +6,62 @@ import { useToast } from '@/components/toast';
 import { EmptyState, ErrorState, Loading, Muted, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
-import { errorMessage } from '@/lib/http';
-import { invalidateSubscriptionData, keys, queryClient } from '@/lib/query';
+import { invalidatePaymentData, queryClient, queryKeys } from '@/lib/query';
 
-/** Rattacher manuellement une opération bancaire que la détection n'a pas associée. */
 export default function LinkPaymentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const toast = useToast();
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
 
   const transactions = useInfiniteQuery({
-    queryKey: keys.transactions(q),
-    queryFn: ({ pageParam }) => api.transactions({ q: q || undefined, cursor: pageParam, limit: 50 }),
+    queryKey: queryKeys.transactions(submittedSearch),
+    queryFn: ({ pageParam }) => api.transactions({ q: submittedSearch || undefined, cursor: pageParam, limit: 50 }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 
-  const link = useMutation({
+  const linkTransaction = useMutation({
     mutationFn: (transactionId: string) => api.linkTransaction(id, transactionId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: keys.payments(id) });
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      invalidateSubscriptionData(id);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allTransactions });
+      invalidatePaymentData(id);
       toast.show('Opération rattachée');
       router.back();
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
 
-  const items = transactions.data?.pages.flatMap((page) => page.items) ?? [];
+  const loadedTransactions = transactions.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <Screen>
       <Searchbar
         placeholder="Rechercher un libellé"
-        value={search}
-        onChangeText={setSearch}
-        onSubmitEditing={() => setQ(search.trim())}
-        onIconPress={() => setQ(search.trim())}
+        value={searchInput}
+        onChangeText={setSearchInput}
+        onSubmitEditing={() => setSubmittedSearch(searchInput.trim())}
+        onIconPress={() => setSubmittedSearch(searchInput.trim())}
       />
       <Muted>Seules les opérations de débit importées depuis votre banque apparaissent ici.</Muted>
       {transactions.isLoading ? (
         <Loading />
       ) : transactions.error ? (
         <ErrorState error={transactions.error} onRetry={transactions.refetch} />
-      ) : items.length === 0 ? (
+      ) : loadedTransactions.length === 0 ? (
         <Card>
           <EmptyState title="Aucune opération" description="Connectez votre banque ou utilisez « Paiement manuel »." />
         </Card>
       ) : (
         <Card>
-          {items.map((tx) => (
+          {loadedTransactions.map((tx) => (
             <List.Item
               key={tx.id}
               title={tx.label}
               titleNumberOfLines={2}
               description={`${formatDate(tx.date)}${tx.subscriptionId ? ' · déjà rattachée' : ''}${tx.coming ? ' · à venir' : ''}`}
-              disabled={Boolean(tx.subscriptionId) || link.isPending}
-              onPress={() => link.mutate(tx.id)}
+              disabled={Boolean(tx.subscriptionId) || linkTransaction.isPending}
+              onPress={() => linkTransaction.mutate(tx.id)}
               right={() => <Text variant="titleSmall">{formatMoney(Math.abs(tx.amountCents), tx.currency)}</Text>}
             />
           ))}

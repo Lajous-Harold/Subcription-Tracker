@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, HelperText, TextInput } from 'react-native-paper';
+import { Button, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, type SubscriptionDetail } from '@subtracker/contracts';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
-import { FieldError, Muted, SectionTitle } from '@/components/ui';
+import { ErrorText, Muted, SectionTitle } from '@/components/ui';
 import { centsToInput } from '@/lib/format';
 
 export interface SubscriptionFormValues {
@@ -41,23 +41,27 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const submit = () => {
-    const next: Record<string, string> = {};
-    if (!label.trim()) next.label = 'Libellé requis';
+    const validationErrors: Record<string, string> = {};
+    if (!label.trim()) validationErrors.label = 'Libellé requis';
     const cents = parseAmountToCents(amount);
-    if (cents === null || cents <= 0) next.amount = 'Montant invalide (ex. 9,99)';
-    if (!/^[A-Z]{3}$/.test(currency.trim().toUpperCase())) next.currency = 'Code devise à 3 lettres (ex. EUR)';
-    const day = billingDay.trim() ? Number(billingDay) : null;
-    if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31)) next.billingDay = 'Jour entre 1 et 31';
-    if (nextDueDate.trim() && !IsoDateSchema.safeParse(nextDueDate.trim()).success) {
-      next.nextDueDate = 'Date au format AAAA-MM-JJ';
+    if (cents === null || cents <= 0) validationErrors.amount = 'Montant invalide (ex. 9,99)';
+    if (!/^[A-Z]{3}$/.test(currency.trim().toUpperCase())) {
+      validationErrors.currency = 'Code devise à 3 lettres (ex. EUR)';
     }
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    const day = billingDay.trim() ? Number(billingDay) : null;
+    if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31)) {
+      validationErrors.billingDay = 'Jour entre 1 et 31';
+    }
+    if (nextDueDate.trim() && !IsoDateSchema.safeParse(nextDueDate.trim()).success) {
+      validationErrors.nextDueDate = 'Date au format AAAA-MM-JJ';
+    }
+    setErrors(validationErrors);
+    if (cents === null || Object.keys(validationErrors).length > 0) return;
     onSubmit({
       label: label.trim(),
       providerId: provider.provider?.id ?? null,
       customProviderName: provider.provider ? null : provider.customName.trim() || null,
-      amountCents: cents!,
+      amountCents: cents,
       currency: currency.trim().toUpperCase(),
       billingDay: day,
       nextDueDate: nextDueDate.trim() || null,
@@ -68,7 +72,7 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
   return (
     <View style={{ gap: 4 }}>
       <TextInput label="Libellé" mode="outlined" value={label} onChangeText={setLabel} error={Boolean(errors.label)} />
-      <FieldError message={errors.label} />
+      <ErrorText message={errors.label} />
       <SectionTitle>Fournisseur</SectionTitle>
       <ProviderPicker value={provider} onChange={setProvider} />
       <SectionTitle>Montant mensuel</SectionTitle>
@@ -93,7 +97,7 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
           style={{ flex: 1 }}
         />
       </View>
-      <FieldError message={errors.amount ?? errors.currency} />
+      <ErrorText message={errors.amount ?? errors.currency} />
       <SectionTitle>Échéance (facultatif)</SectionTitle>
       <TextInput
         label="Jour de prélèvement (1 à 31)"
@@ -104,7 +108,7 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
         maxLength={2}
         error={Boolean(errors.billingDay)}
       />
-      <FieldError message={errors.billingDay} />
+      <ErrorText message={errors.billingDay} />
       <TextInput
         label="Prochaine échéance (AAAA-MM-JJ)"
         mode="outlined"
@@ -113,7 +117,7 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
         placeholder="2026-12-05"
         error={Boolean(errors.nextDueDate)}
       />
-      <FieldError message={errors.nextDueDate} />
+      <ErrorText message={errors.nextDueDate} />
       <Muted>Sans échéance fixée, elle est estimée à partir du jour de prélèvement ou du dernier paiement.</Muted>
       <TextInput
         label="Notes"
@@ -124,11 +128,7 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
         style={{ marginTop: 8 }}
       />
       <Muted>Les valeurs saisies sont marquées « Déclaré » et ne seront jamais modifiées automatiquement.</Muted>
-      {serverError ? (
-        <HelperText type="error" visible>
-          {serverError}
-        </HelperText>
-      ) : null}
+      <ErrorText message={serverError} />
       <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={{ marginTop: 12 }}>
         {submitLabel}
       </Button>

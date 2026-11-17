@@ -13,16 +13,15 @@ import { darkTheme, lightTheme, navigationDark, navigationLight } from '@/lib/th
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
-  const dark = scheme === 'dark';
+  const isDark = useColorScheme() === 'dark';
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <PaperProvider
-          theme={dark ? darkTheme : lightTheme}
+          theme={isDark ? darkTheme : lightTheme}
           settings={{ icon: (props) => <MaterialCommunityIcons {...(props as object)} name={props.name as never} /> }}
         >
-          <ThemeProvider value={dark ? navigationDark : navigationLight}>
+          <ThemeProvider value={isDark ? navigationDark : navigationLight}>
             <ToastProvider>
               <AuthProvider>
                 <RootNavigator />

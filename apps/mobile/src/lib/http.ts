@@ -2,7 +2,6 @@ import { CLIENT_PLATFORM_HEADER, type AuthResponse, type Problem } from '@subtra
 import { API_URL, PLATFORM } from './config';
 import { readRefreshToken, writeRefreshToken } from './storage';
 
-/** Erreur d'API au format problem+json. */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -28,8 +27,10 @@ interface Session {
 
 type SessionListener = (response: AuthResponse | null) => void;
 
+const ACCESS_TOKEN_RENEWAL_MARGIN_MS = 30_000;
+
 let session: Session | null = null;
-let refreshing: Promise<AuthResponse | null> | null = null;
+let refreshInFlight: Promise<AuthResponse | null> | null = null;
 const listeners = new Set<SessionListener>();
 
 export function onSessionChange(listener: SessionListener): () => void {
@@ -82,9 +83,10 @@ export async function applyAuthResponse(response: AuthResponse | null): Promise<
   listeners.forEach((listener) => listener(response));
 }
 
-/** Renouvelle la session (un seul appel à la fois, les requêtes concurrentes attendent). */
+// Un seul renouvellement à la fois, partagé par les requêtes concurrentes : le refresh token est rotatif,
+// et présenter deux fois le même révoquerait la session.
 export function refreshSession(): Promise<AuthResponse | null> {
-  refreshing ??= (async () => {
+  refreshInFlight ??= (async () => {
     try {
       const refreshToken = await readRefreshToken();
       if (PLATFORM === 'native' && !refreshToken) return null;
@@ -98,10 +100,10 @@ export function refreshSession(): Promise<AuthResponse | null> {
       }
       throw error;
     } finally {
-      refreshing = null;
+      refreshInFlight = null;
     }
   })();
-  return refreshing;
+  return refreshInFlight;
 }
 
 export async function logoutSession(): Promise<void> {
@@ -114,18 +116,17 @@ export async function logoutSession(): Promise<void> {
 }
 
 async function validAccessToken(): Promise<string | null> {
-  if (session && session.expiresAt - Date.now() > 30_000) return session.accessToken;
+  if (session && session.expiresAt - Date.now() > ACCESS_TOKEN_RENEWAL_MARGIN_MS) return session.accessToken;
   const refreshed = await refreshSession();
   return refreshed?.accessToken ?? null;
 }
 
-/** Requête authentifiée : renouvelle l'access token si besoin, une nouvelle tentative sur 401. */
 export async function apiRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const send = async (token: string | null) =>
+  const sendWithToken = async (token: string | null) =>
     fetch(`${API_URL}${path}`, {
       method,
       headers: {
@@ -136,11 +137,11 @@ export async function apiRequest<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-  let response = await send(await validAccessToken());
+  let response = await sendWithToken(await validAccessToken());
   if (response.status === 401) {
     const refreshed = await refreshSession();
     if (!refreshed) throw new ApiError(401, 'unauthorized', 'Session expirée, reconnectez-vous');
-    response = await send(refreshed.accessToken);
+    response = await sendWithToken(refreshed.accessToken);
   }
   if (!response.ok) throw await parseError(response);
   if (response.status === 204) return undefined as T;

@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const REFRESH_KEY = 'subtracker.refreshToken';
+const REFRESH_TOKEN_KEY = 'subtracker.refreshToken';
 
 /**
  * Refresh token natif dans le trousseau sécurisé (Keychain / Keystore).
@@ -9,11 +9,11 @@ const REFRESH_KEY = 'subtracker.refreshToken';
  */
 export async function readRefreshToken(): Promise<string | null> {
   if (Platform.OS === 'web') return null;
-  return SecureStore.getItemAsync(REFRESH_KEY);
+  return SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
 }
 
 export async function writeRefreshToken(token: string | null | undefined): Promise<void> {
   if (Platform.OS === 'web') return;
-  if (token) await SecureStore.setItemAsync(REFRESH_KEY, token);
-  else await SecureStore.deleteItemAsync(REFRESH_KEY);
+  if (token) await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+  else await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
 }

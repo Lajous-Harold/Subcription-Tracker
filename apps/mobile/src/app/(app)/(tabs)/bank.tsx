@@ -2,44 +2,40 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Banner, Button, Card, Chip, List, Switch, Text } from 'react-native-paper';
-import type { BankLink, ConnectFlow } from '@subtracker/contracts';
+import type { BankLink } from '@subtracker/contracts';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/toast';
 import { ErrorState, Loading, Muted, Screen, SectionTitle, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { DEMO_ENABLED } from '@/lib/config';
-import { BANK_STATUS_HELP, BANK_STATUS_LABELS, formatDateTime, formatMoney } from '@/lib/format';
-import { ApiError, errorMessage } from '@/lib/http';
+import { BANK_STATUS_HELP, BANK_STATUS_LABELS, formatDateTime, formatMoney, needsBankReconnection } from '@/lib/format';
+import { ApiError } from '@/lib/http';
 import { openPowensFlow } from '@/lib/powens-connect';
-import { invalidateDetectionData, keys, queryClient } from '@/lib/query';
+import { invalidateBankData, queryClient, queryKeys } from '@/lib/query';
+import { DESTRUCTIVE_COLOR } from '@/lib/theme';
 
-const isBusy = (link: BankLink | null | undefined) =>
+const isSyncing = (link: BankLink | null | undefined) =>
   Boolean(link && (link.status === 'pending' || link.syncInProgress));
-
-function refreshBankData() {
-  void queryClient.invalidateQueries({ queryKey: ['bank'] });
-  invalidateDetectionData();
-}
 
 function DemoDataCard() {
   const toast = useToast();
-  const load = useMutation({
+  const loadDemo = useMutation({
     mutationFn: api.loadDemoData,
     onSuccess: (result) => {
-      refreshBankData();
+      invalidateBankData();
       toast.show(
         `${result.imported} opérations fictives importées, ${result.detection.pending} détection(s) à vérifier`,
       );
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
-  const remove = useMutation({
+  const removeDemo = useMutation({
     mutationFn: api.removeDemoData,
     onSuccess: () => {
-      refreshBankData();
+      invalidateBankData();
       toast.show('Données de démonstration retirées');
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
   return (
     <Card mode="outlined">
@@ -50,10 +46,10 @@ function DemoDataCard() {
         </Muted>
       </Card.Content>
       <Card.Actions>
-        <Button onPress={() => remove.mutate()} loading={remove.isPending}>
+        <Button onPress={() => removeDemo.mutate()} loading={removeDemo.isPending}>
           Retirer
         </Button>
-        <Button mode="contained-tonal" onPress={() => load.mutate()} loading={load.isPending}>
+        <Button mode="contained-tonal" onPress={() => loadDemo.mutate()} loading={loadDemo.isPending}>
           Charger
         </Button>
       </Card.Actions>
@@ -64,58 +60,61 @@ function DemoDataCard() {
 export default function BankScreen() {
   const toast = useToast();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
-  const link = useQuery({
-    queryKey: keys.bankLink,
+  const bankLinkQuery = useQuery({
+    queryKey: queryKeys.bankLink,
     queryFn: api.bankLink,
-    refetchInterval: (query) => (isBusy(query.state.data) ? 3000 : false),
+    refetchInterval: (query) => (isSyncing(query.state.data) ? 3000 : false),
   });
-  const accounts = useQuery({ queryKey: keys.bankAccounts, queryFn: api.bankAccounts });
+  const accounts = useQuery({ queryKey: queryKeys.bankAccounts, queryFn: api.bankAccounts });
 
-  const flow = useMutation({
+  const powensFlow = useMutation({
     mutationFn: openPowensFlow,
     onSuccess: (outcome) => {
       if (outcome.kind === 'completed') {
-        refreshBankData();
+        invalidateBankData();
         toast.show('Connexion bancaire enregistrée : synchronisation en cours');
       } else if (outcome.kind === 'cancelled') {
         toast.show('Parcours bancaire fermé');
       }
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
   const sync = useMutation({
     mutationFn: api.syncBank,
     onSuccess: (updated) => {
-      queryClient.setQueryData(keys.bankLink, updated);
+      queryClient.setQueryData(queryKeys.bankLink, updated);
       toast.show('Actualisation demandée');
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
-  const toggle = useMutation({
+  const updateAccount = useMutation({
     mutationFn: ({ id, analyzed }: { id: string; analyzed: boolean }) => api.updateBankAccount(id, analyzed),
-    onSuccess: () => refreshBankData(),
-    onError: (error) => toast.show(errorMessage(error)),
+    onSuccess: () => invalidateBankData(),
+    onError: toast.showError,
   });
   const unlink = useMutation({
     mutationFn: api.unlinkBank,
     onSuccess: () => {
       setUnlinkOpen(false);
-      refreshBankData();
+      invalidateBankData();
       toast.show('Banque déconnectée');
     },
-    onError: (error) => toast.show(errorMessage(error)),
+    onError: toast.showError,
   });
 
-  if (link.isLoading) return <Loading />;
-  if (link.error) return <ErrorState error={link.error} onRetry={link.refetch} />;
+  if (bankLinkQuery.isLoading) return <Loading />;
+  if (bankLinkQuery.error) return <ErrorState error={bankLinkQuery.error} onRetry={bankLinkQuery.refetch} />;
 
-  const current = link.data ?? null;
-  const connected = current && current.status !== 'disconnected';
-  const start = (value: ConnectFlow) => flow.mutate(value);
-  const notConfigured = flow.error instanceof ApiError && flow.error.code === 'powens_not_configured';
+  const bankLink = bankLinkQuery.data ?? null;
+  const connected = bankLink && bankLink.status !== 'disconnected';
+  const accountList = accounts.data ?? [];
+  const notConfigured = powensFlow.error instanceof ApiError && powensFlow.error.code === 'powens_not_configured';
 
   return (
-    <Screen refreshing={link.isRefetching} onRefresh={() => void link.refetch().then(() => accounts.refetch())}>
+    <Screen
+      refreshing={bankLinkQuery.isRefetching}
+      onRefresh={() => void bankLinkQuery.refetch().then(() => accounts.refetch())}
+    >
       {notConfigured ? (
         <Banner visible icon="information-outline">
           La connexion bancaire n’est pas encore configurée sur le serveur. Vous pouvez suivre vos abonnements à la
@@ -141,9 +140,9 @@ export default function BankScreen() {
             <Button
               mode="contained"
               icon="bank-plus"
-              onPress={() => start('connect')}
-              loading={flow.isPending}
-              disabled={flow.isPending}
+              onPress={() => powensFlow.mutate('connect')}
+              loading={powensFlow.isPending}
+              disabled={powensFlow.isPending}
             >
               Connecter ma banque
             </Button>
@@ -152,30 +151,35 @@ export default function BankScreen() {
       ) : (
         <Card>
           <Card.Title
-            title={current.connectorName ?? 'Ma banque'}
-            subtitle={`Dernière synchronisation : ${formatDateTime(current.lastSyncAt)}`}
+            title={bankLink.connectorName ?? 'Ma banque'}
+            subtitle={`Dernière synchronisation : ${formatDateTime(bankLink.lastSyncAt)}`}
           />
           <Card.Content style={{ gap: 8 }}>
             <View style={styles.row}>
-              <Chip compact icon={current.status === 'connected' ? 'check-circle-outline' : 'alert-circle-outline'}>
-                {BANK_STATUS_LABELS[current.status]}
+              <Chip compact icon={bankLink.status === 'connected' ? 'check-circle-outline' : 'alert-circle-outline'}>
+                {BANK_STATUS_LABELS[bankLink.status]}
               </Chip>
-              {current.syncInProgress ? (
+              {bankLink.syncInProgress ? (
                 <Chip compact icon="sync">
                   Synchronisation…
                 </Chip>
               ) : null}
             </View>
-            <Muted>{BANK_STATUS_HELP[current.status]}</Muted>
-            {current.consentExpiringSoon ? (
+            <Muted>{BANK_STATUS_HELP[bankLink.status]}</Muted>
+            {bankLink.consentExpiringSoon ? (
               <Banner visible icon="clock-alert-outline">
-                {`Votre autorisation expire le ${formatDateTime(current.consentExpiresAt)}. Renouvelez-la pour continuer la détection.`}
+                {`Votre autorisation expire le ${formatDateTime(bankLink.consentExpiresAt)}. Renouvelez-la pour continuer la détection.`}
               </Banner>
             ) : null}
           </Card.Content>
           <Card.Actions style={{ flexWrap: 'wrap' }}>
-            {current.status === 'action_required' || current.status === 'error' || current.consentExpiringSoon ? (
-              <Button mode="contained" icon="refresh" onPress={() => start('reconnect')} loading={flow.isPending}>
+            {needsBankReconnection(bankLink) ? (
+              <Button
+                mode="contained"
+                icon="refresh"
+                onPress={() => powensFlow.mutate('reconnect')}
+                loading={powensFlow.isPending}
+              >
                 Reconnecter
               </Button>
             ) : null}
@@ -183,7 +187,7 @@ export default function BankScreen() {
               icon="sync"
               onPress={() => sync.mutate()}
               loading={sync.isPending}
-              disabled={sync.isPending || isBusy(current)}
+              disabled={sync.isPending || isSyncing(bankLink)}
             >
               Actualiser
             </Button>
@@ -193,12 +197,12 @@ export default function BankScreen() {
 
       <SectionTitle>Comptes</SectionTitle>
       <Card>
-        {(accounts.data ?? []).length === 0 ? (
+        {accountList.length === 0 ? (
           <Card.Content>
             <Muted>{connected ? 'Les comptes apparaîtront après la première synchronisation.' : 'Aucun compte.'}</Muted>
           </Card.Content>
         ) : (
-          (accounts.data ?? []).map((account) => (
+          accountList.map((account) => (
             <List.Item
               key={account.id}
               title={account.name}
@@ -215,7 +219,7 @@ export default function BankScreen() {
                   <Muted>Analyser</Muted>
                   <Switch
                     value={account.analyzed}
-                    onValueChange={(analyzed) => toggle.mutate({ id: account.id, analyzed })}
+                    onValueChange={(analyzed) => updateAccount.mutate({ id: account.id, analyzed })}
                     accessibilityLabel={`Analyser le compte ${account.name}`}
                   />
                 </View>
@@ -225,7 +229,11 @@ export default function BankScreen() {
         )}
         {connected ? (
           <Card.Actions>
-            <Button icon="account-cog-outline" onPress={() => start('manage')} disabled={flow.isPending}>
+            <Button
+              icon="account-cog-outline"
+              onPress={() => powensFlow.mutate('manage')}
+              disabled={powensFlow.isPending}
+            >
               Gérer les comptes partagés
             </Button>
           </Card.Actions>
@@ -236,7 +244,7 @@ export default function BankScreen() {
       {connected ? (
         <Button
           icon="link-off"
-          textColor="#C62828"
+          textColor={DESTRUCTIVE_COLOR}
           onPress={() => setUnlinkOpen(true)}
           style={{ alignSelf: 'flex-start' }}
         >

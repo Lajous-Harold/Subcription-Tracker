@@ -1,14 +1,21 @@
 import type { ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  type ScrollViewProps,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';
 import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'react-native-paper';
 import type { Origin } from '@subtracker/contracts';
 import { ORIGIN_HELP, ORIGIN_LABELS } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { originColors } from '@/lib/theme';
 
-export const MAX_WIDTH = 760;
+const MAX_WIDTH = 760;
 
-/** Conteneur de page défilant, centré et limité en largeur sur le web. */
 export function Screen({
   children,
   refreshing,
@@ -74,13 +81,12 @@ export function EmptyState({
   );
 }
 
-/** Pastille de provenance : observé, déclaré ou estimé. */
-export function OriginChip({ origin, compact = true }: { origin: Origin; compact?: boolean }) {
+export function OriginChip({ origin }: { origin: Origin }) {
   const theme = useTheme();
   const palette = originColors[origin][theme.dark ? 'dark' : 'light'];
   return (
     <Chip
-      compact={compact}
+      compact
       style={[styles.chip, { backgroundColor: palette }]}
       textStyle={styles.chipText}
       accessibilityLabel={`${ORIGIN_LABELS[origin]} : ${ORIGIN_HELP[origin]}`}
@@ -98,7 +104,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   );
 }
 
-export function FieldError({ message }: { message?: string }) {
+export function ErrorText({ message }: { message?: string | null }) {
   return message ? (
     <HelperText type="error" visible>
       {message}
@@ -106,7 +112,7 @@ export function FieldError({ message }: { message?: string }) {
   ) : null;
 }
 
-export function Muted({ children, style }: { children: ReactNode; style?: object }) {
+export function Muted({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   const theme = useTheme();
   return (
     <Text variant="bodySmall" style={[{ color: theme.colors.onSurfaceVariant }, style]}>
@@ -125,6 +131,7 @@ export const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 16, gap: 4 },
   emptyActions: { marginTop: 16, gap: 8, alignSelf: 'stretch', alignItems: 'center' },
   chip: { alignSelf: 'flex-start' },
+  dialog: { maxWidth: 480, alignSelf: 'center', width: '92%' },
   chipText: { fontSize: 12, marginVertical: 0 },
   section: { marginTop: 8, opacity: 0.8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
