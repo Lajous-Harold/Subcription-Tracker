@@ -25,6 +25,11 @@ export function AddPaymentDialog({
   const [amount, setAmount] = useState(centsToInput(defaultCents));
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) setAmount(centsToInput(defaultCents));
+  }
 
   const addPayment = useMutation({
     mutationFn: (body: { date: string; amountCents: number }) =>

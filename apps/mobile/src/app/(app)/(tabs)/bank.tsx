@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Banner, Button, Card, Chip, List, Switch, Text } from 'react-native-paper';
 import type { BankLink } from '@subtracker/contracts';
@@ -66,6 +66,12 @@ export default function BankScreen() {
     refetchInterval: (query) => (isSyncing(query.state.data) ? 3000 : false),
   });
   const accounts = useQuery({ queryKey: queryKeys.bankAccounts, queryFn: api.bankAccounts });
+  const syncing = isSyncing(bankLinkQuery.data);
+  const wasSyncing = useRef(syncing);
+  useEffect(() => {
+    if (wasSyncing.current && !syncing) invalidateBankData();
+    wasSyncing.current = syncing;
+  }, [syncing]);
 
   const powensFlow = useMutation({
     mutationFn: openPowensFlow,
@@ -187,7 +193,7 @@ export default function BankScreen() {
               icon="sync"
               onPress={() => sync.mutate()}
               loading={sync.isPending}
-              disabled={sync.isPending || isSyncing(bankLink)}
+              disabled={sync.isPending || syncing}
             >
               Actualiser
             </Button>

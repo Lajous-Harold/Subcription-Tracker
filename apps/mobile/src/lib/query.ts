@@ -49,5 +49,6 @@ export function invalidateDetectionData() {
 
 export function invalidateBankData() {
   void queryClient.invalidateQueries({ queryKey: queryKeys.bank });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.allTransactions });
   invalidateDetectionData();
 }

@@ -71,7 +71,11 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
     onSuccess: onSaved,
     onError: (caught) => setError(errorMessage(caught)),
   });
-  const clear = useMutation({ mutationFn: () => api.clearCancellation(id), onSuccess: onSaved });
+  const clear = useMutation({
+    mutationFn: () => api.clearCancellation(id),
+    onSuccess: onSaved,
+    onError: toast.showError,
+  });
   const procedure = provider?.cancellation;
   const officialHelpUrl = procedure?.sourceUrl;
   const officialCancellationUrl = procedure?.url;
