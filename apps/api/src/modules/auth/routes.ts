@@ -14,7 +14,7 @@ import {
 } from '@subtracker/contracts';
 import { getConfig } from '../../core/context';
 import { createModule } from '../../core/http';
-import { unauthorized } from '../../core/errors';
+import { tooManyRequests, unauthorized } from '../../core/errors';
 import { deleteAccount } from '../account/deletion';
 import * as auth from './service';
 
@@ -57,12 +57,7 @@ const authLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => getConfig().APP_ENV === 'test',
-  message: {
-    type: 'https://subtracker.local/problems/rate_limited',
-    title: 'Trop de tentatives, réessayez plus tard',
-    status: 429,
-    code: 'rate_limited',
-  },
+  handler: (_req, _res, next) => next(tooManyRequests('Trop de tentatives, réessayez plus tard')),
 });
 
 const platformNote = `En-tête \`${CLIENT_PLATFORM_HEADER}: web|native\`. Web : refresh token posé en cookie httpOnly. Natif : renvoyé dans la réponse.`;

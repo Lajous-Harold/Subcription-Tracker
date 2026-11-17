@@ -10,6 +10,7 @@ import {
 } from '@subtracker/contracts';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { getConfig } from '../../core/context';
+import { tooManyRequests } from '../../core/errors';
 import { IdParamsSchema, createModule } from '../../core/http';
 import { BankLinkModel, type BankLinkDoc } from './models';
 import * as service from './service';
@@ -25,6 +26,7 @@ const connectLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => getConfig().APP_ENV === 'test',
   keyGenerator: (req) => req.auth?.userId ?? ipKeyGenerator(req.ip ?? '0.0.0.0'),
+  handler: (_req, _res, next) => next(tooManyRequests('Trop de demandes de connexion, réessayez plus tard')),
 });
 
 route({

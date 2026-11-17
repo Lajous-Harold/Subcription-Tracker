@@ -88,13 +88,13 @@ export async function createConnectSession(
   const existing = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
   if (body.flow === 'connect' && existing?.connectionId && existing.status !== 'disconnected') {
     throw conflict(
-      'bank_already_connected',
+      'BANK_ALREADY_CONNECTED',
       'Une connexion bancaire existe déjà',
       'Une seule connexion est possible pour le moment.',
     );
   }
   if (body.flow !== 'connect' && !existing?.connectionId) {
-    throw conflict('no_bank_connection', 'Aucune connexion bancaire à gérer');
+    throw conflict('NO_BANK_CONNECTION', 'Aucune connexion bancaire à gérer');
   }
 
   const link = await ensureBankLink(userId);
@@ -129,6 +129,8 @@ const WEBVIEW_ERRORS: Record<string, string> = {
   server_error: 'Erreur côté Powens, réessayez plus tard',
 };
 
+const webviewErrorCode = (webviewError: string) => `WEBVIEW_${webviewError.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`;
+
 /**
  * Le `state` (usage unique, lié à l'utilisateur) prouve que le parcours a été lancé par cet utilisateur ;
  * la relecture de la connexion avec SON token Powens prouve qu'elle lui appartient.
@@ -138,12 +140,12 @@ export async function completeConnectSession(userId: string, body: CompleteConne
     { stateHash: sha256(body.state), userId, usedAt: null, expiresAt: { $gt: new Date() } },
     { $set: { usedAt: new Date() } },
   );
-  if (!session) throw badRequest('invalid_state', 'Session de connexion invalide ou expirée');
+  if (!session) throw badRequest('INVALID_STATE', 'Session de connexion invalide ou expirée');
 
   if (body.error) {
     throw new AppError(
       400,
-      `webview_${body.error}`,
+      webviewErrorCode(body.error),
       WEBVIEW_ERRORS[body.error] ?? 'Connexion bancaire interrompue',
       body.errorDescription,
     );
@@ -154,9 +156,9 @@ export async function completeConnectSession(userId: string, body: CompleteConne
 
   const connectionId = body.connectionId ? Number(body.connectionId) : link.connectionId;
   if (session.flow === 'connect' && !body.connectionId) {
-    throw badRequest('missing_connection', 'Identifiant de connexion manquant');
+    throw badRequest('MISSING_CONNECTION', 'Identifiant de connexion manquant');
   }
-  if (!connectionId) throw badRequest('missing_connection', 'Identifiant de connexion manquant');
+  if (!connectionId) throw badRequest('MISSING_CONNECTION', 'Identifiant de connexion manquant');
 
   const client = getPowensClient();
   let connection;
@@ -164,7 +166,7 @@ export async function completeConnectSession(userId: string, body: CompleteConne
     connection = await client.getConnection(powensToken(link), connectionId);
   } catch (error) {
     if (error instanceof PowensError && (error.status === 404 || error.status === 403)) {
-      throw badRequest('unknown_connection', 'Connexion introuvable pour cet utilisateur');
+      throw badRequest('UNKNOWN_CONNECTION', 'Connexion introuvable pour cet utilisateur');
     }
     throw error;
   }

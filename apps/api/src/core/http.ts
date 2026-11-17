@@ -1,7 +1,7 @@
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z, type ZodType } from 'zod';
-import { ProblemSchema } from '@subtracker/contracts';
+import { ApiErrorSchema } from '@subtracker/contracts';
 import { requireAuth } from '../modules/auth/middleware';
 
 export const openApiRegistry = new OpenAPIRegistry();
@@ -48,7 +48,7 @@ interface RouteSpec<B extends ZodType | undefined, Q extends ZodType | undefined
   ) => Promise<unknown> | unknown;
 }
 
-const problemContent = { 'application/problem+json': { schema: ProblemSchema } };
+const errorContent = { 'application/json': { schema: ApiErrorSchema } };
 
 /** Les mêmes schémas Zod valident chaque route et la documentent : pas de dérive entre code et Swagger. */
 export function createModule(basePath: string, tag: string) {
@@ -63,12 +63,12 @@ export function createModule(basePath: string, tag: string) {
     const status = spec.status ?? (spec.method === 'post' ? 201 : 200);
     const openApiPath = `${basePath}${spec.path}`.replace(/:(\w+)/g, '{$1}').replace(/\/$/, '') || '/';
 
-    const errorResponses: Record<string, { description: string; content: typeof problemContent }> = {
-      400: { description: 'Requête invalide', content: problemContent },
+    const errorResponses: Record<string, { description: string; content: typeof errorContent }> = {
+      400: { description: 'Requête invalide', content: errorContent },
     };
-    if (auth) errorResponses[401] = { description: 'Non authentifié', content: problemContent };
+    if (auth) errorResponses[401] = { description: 'Non authentifié', content: errorContent };
     for (const code of spec.errors ?? []) {
-      errorResponses[code] = { description: 'Erreur', content: problemContent };
+      errorResponses[code] = { description: 'Erreur', content: errorContent };
     }
 
     openApiRegistry.registerPath({

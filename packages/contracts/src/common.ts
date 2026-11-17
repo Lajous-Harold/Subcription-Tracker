@@ -40,16 +40,16 @@ export const sourced = <T extends z.ZodType>(value: T) =>
     updatedAt: TimestampSchema,
   });
 
-/** Erreur au format RFC 9457 (application/problem+json). */
-export const ProblemSchema = z.object({
-  type: z.string(),
-  title: z.string(),
-  status: z.number().int(),
-  code: z.string(),
-  detail: z.string().optional(),
-  errors: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+/** Enveloppe unique de toute réponse d'erreur de l'API (statut >= 400). */
+export const ApiErrorSchema = z.object({
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+    fields: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+    hint: z.string().optional(),
+  }),
 });
-export type Problem = z.infer<typeof ProblemSchema>;
+export type ApiErrorResponse = z.infer<typeof ApiErrorSchema>;
 
 export const ClientPlatformSchema = z.enum(['web', 'native']);
 export type ClientPlatform = z.infer<typeof ClientPlatformSchema>;

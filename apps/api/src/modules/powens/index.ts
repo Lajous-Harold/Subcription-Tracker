@@ -27,7 +27,7 @@ export function getPowensClient(): PowensClient {
   if (!config.powensConfigured) {
     throw new AppError(
       503,
-      'powens_not_configured',
+      'POWENS_NOT_CONFIGURED',
       'Connexion bancaire indisponible',
       'Les identifiants Powens ne sont pas configurés sur le serveur.',
     );

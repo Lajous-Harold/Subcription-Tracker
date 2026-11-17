@@ -1,4 +1,4 @@
-import { CLIENT_PLATFORM_HEADER, type AuthResponse, type Problem } from '@subtracker/contracts';
+import { CLIENT_PLATFORM_HEADER, type ApiErrorResponse, type AuthResponse } from '@subtracker/contracts';
 import { API_URL, PLATFORM } from './config';
 import { readRefreshToken, writeRefreshToken } from './storage';
 
@@ -7,7 +7,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
-    public readonly detail?: string,
+    public readonly hint?: string,
     public readonly fieldErrors: Record<string, string> = {},
   ) {
     super(message);
@@ -15,7 +15,7 @@ export class ApiError extends Error {
 }
 
 export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.detail ? `${error.message} — ${error.detail}` : error.message;
+  if (error instanceof ApiError) return error.hint ? `${error.message} — ${error.hint}` : error.message;
   if (error instanceof TypeError) return 'Serveur injoignable. Vérifiez votre connexion et l’adresse de l’API.';
   return error instanceof Error ? error.message : 'Erreur inattendue';
 }
@@ -39,18 +39,18 @@ export function onSessionChange(listener: SessionListener): () => void {
 }
 
 async function parseError(response: Response): Promise<ApiError> {
-  let problem: Partial<Problem> = {};
+  let error: Partial<ApiErrorResponse['error']> = {};
   try {
-    problem = (await response.json()) as Problem;
+    error = ((await response.json()) as Partial<ApiErrorResponse>).error ?? {};
   } catch {
     // corps vide ou non JSON
   }
-  const fieldErrors = Object.fromEntries((problem.errors ?? []).map((error) => [error.path, error.message]));
+  const fieldErrors = Object.fromEntries((error.fields ?? []).map((field) => [field.path, field.message]));
   return new ApiError(
     response.status,
-    problem.code ?? 'http_error',
-    problem.title ?? `Erreur ${response.status}`,
-    problem.detail,
+    error.code ?? 'HTTP_ERROR',
+    error.message ?? `Erreur ${response.status}`,
+    error.hint,
     fieldErrors,
   );
 }
@@ -140,7 +140,7 @@ export async function apiRequest<T>(
   let response = await sendWithToken(await validAccessToken());
   if (response.status === 401) {
     const refreshed = await refreshSession();
-    if (!refreshed) throw new ApiError(401, 'unauthorized', 'Session expirée, reconnectez-vous');
+    if (!refreshed) throw new ApiError(401, 'UNAUTHORIZED', 'Session expirée, reconnectez-vous');
     response = await sendWithToken(refreshed.accessToken);
   }
   if (!response.ok) throw await parseError(response);

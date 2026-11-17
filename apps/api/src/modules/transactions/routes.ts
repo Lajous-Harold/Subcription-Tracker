@@ -15,7 +15,7 @@ function encodeCursor(tx: Pick<TransactionDoc, 'date' | '_id'>): string {
 
 function decodeCursor(cursor: string): { date: string; id: string } {
   const [date, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
-  if (!date || !id || !Types.ObjectId.isValid(id)) throw badRequest('invalid_cursor', 'Curseur invalide');
+  if (!date || !id || !Types.ObjectId.isValid(id)) throw badRequest('INVALID_CURSOR', 'Curseur invalide');
   return { date, id };
 }
 

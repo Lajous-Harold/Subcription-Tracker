@@ -231,7 +231,7 @@ describe('connexion bancaire Powens (simulée)', () => {
       .set(alice.auth)
       .send({ state: session.state, connectionId: '7' })
       .expect(400);
-    expect(reused.body.code).toBe('invalid_state');
+    expect(reused.body.error?.code).toBe('INVALID_STATE');
   });
 
   it('remonte proprement l’annulation dans la Webview', async () => {
@@ -242,8 +242,8 @@ describe('connexion bancaire Powens (simulée)', () => {
       .set(user.auth)
       .send({ state: session.state, error: 'access_denied', errorDescription: 'User cancelled' })
       .expect(400);
-    expect(res.body.code).toBe('webview_access_denied');
-    expect(res.body.title).toBe('Connexion annulée');
+    expect(res.body.error?.code).toBe('WEBVIEW_ACCESS_DENIED');
+    expect(res.body.error?.message).toBe('Connexion annulée');
   });
 
   it('une seule connexion bancaire par utilisateur', async () => {
@@ -350,13 +350,13 @@ describe('connexion bancaire Powens (simulée)', () => {
       .set(user.auth)
       .send({ flow: 'connect', platform: 'web' })
       .expect(503);
-    expect(res.body.code).toBe('powens_not_configured');
     await request(bare)
       .post('/api/subscriptions')
       .set(user.auth)
       .send({ label: 'Manuel', amountCents: 500 })
       .expect(201);
     testApp(); // restaure la configuration par défaut pour les tests suivants
+    expect(res.body.error?.code).toBe('POWENS_NOT_CONFIGURED');
   });
 });
 

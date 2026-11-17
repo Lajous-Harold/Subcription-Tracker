@@ -24,8 +24,8 @@ describe('auth', () => {
       .post('/api/auth/register')
       .send({ email: 'c@example.com', password: 'court' })
       .expect(400);
-    expect(res.body.code).toBe('validation_error');
-    expect(res.headers['content-type']).toContain('application/problem+json');
+    expect(res.body.error?.code).toBe('INVALID_INPUT');
+    expect(res.headers['content-type']).toMatch(/^application\/json/);
   });
 
   it('connecte avec le bon mot de passe, même message d’erreur sinon', async () => {
@@ -39,7 +39,9 @@ describe('auth', () => {
       .post('/api/auth/login')
       .send({ email: 'inconnu@example.com', password: 'mauvais-mot-de-passe' })
       .expect(401);
-    expect(wrong.body.title).toBe(unknown.body.title);
+    expect(wrong.body.error?.code).toBe('UNAUTHORIZED');
+    expect(wrong.body.error?.message).toEqual(expect.stringMatching(/\S/));
+    expect(wrong.body.error?.message).toBe(unknown.body.error?.message);
   });
 
   it('protège /me et renvoie l’utilisateur courant', async () => {

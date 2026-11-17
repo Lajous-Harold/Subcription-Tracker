@@ -108,7 +108,7 @@ export default function BankScreen() {
   const bankLink = bankLinkQuery.data ?? null;
   const connected = bankLink && bankLink.status !== 'disconnected';
   const accountList = accounts.data ?? [];
-  const notConfigured = powensFlow.error instanceof ApiError && powensFlow.error.code === 'powens_not_configured';
+  const notConfigured = powensFlow.error instanceof ApiError && powensFlow.error.code === 'POWENS_NOT_CONFIGURED';
 
   return (
     <Screen

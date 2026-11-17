@@ -228,7 +228,7 @@ async function findPendingCandidate(userId: string, id: string): Promise<Candida
   if (!Types.ObjectId.isValid(id)) throw notFound('Candidat');
   const doc = await CandidateModel.findOne({ _id: id, userId }).lean<CandidateDoc>();
   if (!doc) throw notFound('Candidat');
-  if (doc.status !== 'pending') throw conflict('candidate_already_decided', 'Ce candidat a déjà été traité');
+  if (doc.status !== 'pending') throw conflict('CANDIDATE_ALREADY_DECIDED', 'Ce candidat a déjà été traité');
   return doc;
 }
 
@@ -248,7 +248,7 @@ export async function acceptCandidate(
       userId,
     }).lean<SubscriptionDoc>();
     if (!target) throw notFound('Abonnement');
-    if (target.detection) throw conflict('already_bank_linked', 'Cet abonnement est déjà lié à une détection bancaire');
+    if (target.detection) throw conflict('ALREADY_BANK_LINKED', 'Cet abonnement est déjà lié à une détection bancaire');
     const set: Record<string, unknown> = { detection };
     if (target.amount.origin !== 'declared') {
       set.amount = {

@@ -2,7 +2,7 @@ import argon2 from 'argon2';
 import type { AuthResponse, ClientPlatform, User } from '@subtracker/contracts';
 import { getConfig } from '../../core/context';
 import { randomToken, sha256 } from '../../core/crypto';
-import { AppError, conflict, unauthorized } from '../../core/errors';
+import { conflict, unauthorized } from '../../core/errors';
 import { SessionModel, UserModel, type UserDoc } from './models';
 import { signAccessToken } from './tokens';
 
@@ -10,7 +10,7 @@ import { signAccessToken } from './tokens';
 let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= argon2.hash('mot-de-passe-factice-pour-temps-constant'));
 
-const invalidCredentials = () => new AppError(401, 'invalid_credentials', 'Email ou mot de passe incorrect');
+const invalidCredentials = () => unauthorized('Email ou mot de passe incorrect');
 
 function toUserDto(user: Pick<UserDoc, '_id' | 'email' | 'createdAt'>): User {
   return { id: user._id.toString(), email: user.email, createdAt: user.createdAt.toISOString() };
@@ -48,14 +48,14 @@ async function issueSession(
 
 export async function register(email: string, password: string, platform: ClientPlatform) {
   const existing = await UserModel.exists({ email });
-  if (existing) throw conflict('email_taken', 'Un compte existe déjà avec cette adresse');
+  if (existing) throw conflict('EMAIL_ALREADY_USED', 'Un compte existe déjà avec cette adresse');
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   try {
     const user = await UserModel.create({ email, passwordHash });
     return issueSession(user, platform);
   } catch (error) {
     if ((error as { code?: number }).code === 11000) {
-      throw conflict('email_taken', 'Un compte existe déjà avec cette adresse');
+      throw conflict('EMAIL_ALREADY_USED', 'Un compte existe déjà avec cette adresse');
     }
     throw error;
   }

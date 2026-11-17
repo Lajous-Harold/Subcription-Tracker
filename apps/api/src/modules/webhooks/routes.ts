@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { getConfig } from '../../core/context';
-import { AppError } from '../../core/errors';
+import { invalidInput, unauthorized } from '../../core/errors';
 import { createModule } from '../../core/http';
 import { logger } from '../../core/logger';
 import { BankLinkModel, WebhookEventModel, type BankLinkDoc } from '../bank/models';
@@ -31,13 +31,13 @@ const PayloadSchema = z
 function verifySignature(req: express.Request, rawBody: string): void {
   const config = getConfig();
   const secret = config.POWENS_WEBHOOK_SECRET;
-  if (!secret) throw new AppError(401, 'webhook_not_configured', 'Webhooks non configurés');
+  if (!secret) throw unauthorized('Webhooks non configurés');
   const signature = req.header('bi-signature');
   const date = req.header('bi-signature-date');
-  if (!signature || !date) throw new AppError(401, 'missing_signature', 'Signature absente');
+  if (!signature || !date) throw unauthorized('Signature absente');
   const timestamp = Date.parse(date);
   if (Number.isNaN(timestamp) || Math.abs(Date.now() - timestamp) > MAX_CLOCK_SKEW_MS) {
-    throw new AppError(401, 'stale_signature', 'Signature expirée');
+    throw unauthorized('Signature expirée');
   }
   const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
   // Le format exact de « endpoint » dans la signature est à confirmer sur la sandbox :
@@ -46,7 +46,7 @@ function verifySignature(req: express.Request, rawBody: string): void {
   const valid = acceptedEndpoints.some((endpoint) =>
     verifyWebhookSignature({ secret, method: req.method, endpoint, date, payload: rawBody, signature }),
   );
-  if (!valid) throw new AppError(401, 'invalid_signature', 'Signature invalide');
+  if (!valid) throw unauthorized('Signature invalide');
 }
 
 async function findLinkForPayload(payload: z.infer<typeof PayloadSchema>): Promise<BankLinkDoc | null> {
@@ -80,7 +80,7 @@ webhooksModule.route({
     try {
       payload = PayloadSchema.parse(JSON.parse(rawBody || '{}'));
     } catch {
-      throw new AppError(400, 'invalid_payload', 'Payload invalide');
+      throw invalidInput('Payload invalide');
     }
 
     if (payload.id_webhook_data !== undefined) {

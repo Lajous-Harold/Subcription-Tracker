@@ -104,7 +104,7 @@ export async function getSubscription(userId: string, id: string): Promise<Subsc
 export async function assertProvider(providerId: string | null | undefined): Promise<void> {
   if (!providerId) return;
   if (!(await ProviderModel.exists({ _id: providerId }))) {
-    throw badRequest('unknown_provider', 'Fournisseur inconnu');
+    throw badRequest('UNKNOWN_PROVIDER', 'Fournisseur inconnu');
   }
 }
 
@@ -204,7 +204,7 @@ export async function resetField(userId: string, id: string, field: ResettableFi
 
   if (field === 'amount') {
     const last = bankPayments[0];
-    if (!last) throw conflict('no_observed_data', 'Aucun paiement bancaire observé pour ce montant');
+    if (!last) throw conflict('NO_OBSERVED_DATA', 'Aucun paiement bancaire observé pour ce montant');
     set.amount = { cents: last.amountCents, currency: last.currency, origin: 'observed', updatedAt: now };
   } else if (field === 'billingDay') {
     if (bankPayments.length === 0) {
@@ -319,7 +319,7 @@ export async function linkTransaction(userId: string, id: string, transactionId:
   const tx = await TransactionModel.findOne({ _id: transactionId, userId, deletedAt: null }).lean<TransactionDoc>();
   if (!tx) throw notFound('Transaction');
   const payment = await attachTransaction(userId, current._id, tx, 'user');
-  if (!payment) throw conflict('transaction_already_linked', 'Cette transaction est déjà rattachée à un abonnement');
+  if (!payment) throw conflict('TRANSACTION_ALREADY_LINKED', 'Cette transaction est déjà rattachée à un abonnement');
   return payment;
 }
 
