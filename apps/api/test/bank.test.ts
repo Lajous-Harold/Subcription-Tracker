@@ -1,6 +1,6 @@
 import nock from 'nock';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@jest/globals';
 import { purgeExpiredData } from '../src/jobs/scheduler';
 import { BankLinkModel, PowensCleanupModel, WebhookEventModel } from '../src/modules/bank/models';
 import { waitForSyncs } from '../src/modules/bank/sync';

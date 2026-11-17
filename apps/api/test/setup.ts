@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { afterAll, afterEach, beforeAll, inject } from 'vitest';
+import { afterAll, afterEach, beforeAll } from '@jest/globals';
 import nock from 'nock';
 import { loadConfig } from '../src/core/config';
 import { setConfig } from '../src/core/context';
@@ -25,12 +25,12 @@ setConfig(loadConfig({ ...TEST_ENV } as NodeJS.ProcessEnv));
 
 beforeAll(async () => {
   const dbName = `test_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
-  await mongoose.connect(inject('mongoUri'), { dbName });
+  await mongoose.connect(process.env.MONGODB_TEST_URI!, { dbName });
   await Promise.all(Object.values(mongoose.models).map((model) => model.syncIndexes()));
   await ensureProviderCatalog();
   nock.disableNetConnect();
   nock.enableNetConnect(/127\.0\.0\.1|localhost/);
-});
+}, 60_000);
 
 afterEach(async () => {
   await waitForSyncs();
@@ -40,10 +40,13 @@ afterEach(async () => {
   await Promise.all(
     collections.filter((c) => c.collectionName !== 'providers').map((collection) => collection.deleteMany({})),
   );
-});
+}, 60_000);
 
 afterAll(async () => {
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
   nock.enableNetConnect();
-});
+  // Jest recharge nock pour chaque fichier alors que le module http est partagé :
+  // sans restore(), les intercepteurs s'empilent d'un fichier à l'autre.
+  nock.restore();
+}, 60_000);

@@ -10,8 +10,8 @@
     "build": "tsup",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --watch",
     "openapi": "tsx scripts/write-openapi.ts",
     "seed:providers": "tsx --env-file-if-exists=.env scripts/seed-providers.ts",
     "powens:smoke": "tsx --env-file-if-exists=.env scripts/powens-smoke.ts"

@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@jest/globals';
 import { SessionModel, UserModel } from '../src/modules/auth/models';
 import { registerUser, testApp } from './helpers';
 
