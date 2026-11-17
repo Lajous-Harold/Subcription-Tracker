@@ -7,7 +7,11 @@ export const IdSchema = z.string().regex(/^[a-f0-9]{24}$/i, 'Identifiant invalid
 export const IsoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date attendue au format AAAA-MM-JJ')
-  .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), 'Date invalide');
+  // Date.parse accepte « 2026-02-30 » (reporté au 2 mars) : on exige que la date relue soit identique.
+  .refine((value) => {
+    const time = Date.parse(`${value}T00:00:00Z`);
+    return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === value;
+  }, 'Date invalide');
 
 /** Horodatage ISO 8601 complet. */
 export const TimestampSchema = z.string().datetime({ offset: true });
