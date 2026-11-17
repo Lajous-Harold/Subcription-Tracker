@@ -180,7 +180,8 @@ export async function completeConnectSession(userId: string, body: CompleteConne
   scheduleSync(userId, { reason: 'webview_callback' });
 
   const updated = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
-  return toBankLinkDto(updated!);
+  if (!updated) throw notFound('Lien bancaire');
+  return toBankLinkDto(updated);
 }
 
 export async function listAccounts(userId: string): Promise<BankAccount[]> {

@@ -2,6 +2,7 @@ import type { Provider, ProviderSummary } from '@subtracker/contracts';
 import type { ProviderPattern } from '@subtracker/detection';
 import { notFound } from '../../core/errors';
 import { logger } from '../../core/logger';
+import { escapeRegex } from '../../core/regex';
 import { ProviderModel, type ProviderDoc } from './model';
 import { PROVIDER_CATALOG } from './catalog';
 
@@ -30,8 +31,6 @@ export function toProviderSummary(doc: Pick<ProviderDoc, '_id' | 'slug' | 'name'
     category: doc.category as ProviderSummary['category'],
   };
 }
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export async function listProviders(q?: string): Promise<Provider[]> {
   const filter = q ? { name: { $regex: escapeRegex(q), $options: 'i' } } : {};

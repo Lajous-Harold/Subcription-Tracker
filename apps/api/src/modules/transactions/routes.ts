@@ -2,12 +2,11 @@ import { Types } from 'mongoose';
 import { TransactionListQuerySchema, TransactionListResponseSchema, type Transaction } from '@subtracker/contracts';
 import { createModule } from '../../core/http';
 import { badRequest } from '../../core/errors';
+import { escapeRegex } from '../../core/regex';
 import { PaymentModel } from '../subscriptions/models';
 import { TransactionModel, type TransactionDoc } from './model';
 
 export const transactionsModule = createModule('/transactions', 'Transactions');
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function encodeCursor(tx: Pick<TransactionDoc, 'date' | '_id'>): string {
   return Buffer.from(`${tx.date}|${tx._id.toString()}`).toString('base64url');

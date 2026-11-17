@@ -1,5 +1,6 @@
 import { createApp } from './app';
 import { loadConfig } from './core/config';
+import { setConfig } from './core/context';
 import { connectDatabase, disconnectDatabase } from './core/db';
 import { logger } from './core/logger';
 import { startJobs } from './jobs/scheduler';
@@ -7,6 +8,8 @@ import { ensureProviderCatalog } from './modules/providers/service';
 
 async function main() {
   const config = loadConfig();
+  // Avant la connexion à la base : le logger doit déjà suivre LOG_LEVEL.
+  setConfig(config);
   await connectDatabase(config.MONGODB_URI);
   await ensureProviderCatalog();
   const app = createApp(config);

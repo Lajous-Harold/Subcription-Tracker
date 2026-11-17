@@ -37,7 +37,7 @@ const EnvSchema = z
     ENABLE_JOBS: booleanString.default(true),
     /** Export web de l'app Expo, servi par l'API quand il est défini. */
     WEB_DIST_DIR: z.string().min(1).optional(),
-    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 
     POWENS_DOMAIN: z.string().optional(),
     POWENS_CLIENT_ID: z.string().optional(),
@@ -53,6 +53,7 @@ const EnvSchema = z
     PUBLIC_API_URL: env.PUBLIC_API_URL ?? RENDER_EXTERNAL_URL ?? 'http://localhost:4000',
     COOKIE_SECURE: env.COOKIE_SECURE ?? env.APP_ENV === 'production',
     ENABLE_DEMO_DATA: env.ENABLE_DEMO_DATA ?? env.APP_ENV !== 'production',
+    LOG_LEVEL: env.LOG_LEVEL ?? (env.APP_ENV === 'test' ? 'silent' : 'info'),
     powensConfigured: Boolean(env.POWENS_DOMAIN && env.POWENS_CLIENT_ID && env.POWENS_CLIENT_SECRET),
   }));
 

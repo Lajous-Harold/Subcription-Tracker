@@ -193,7 +193,8 @@ export async function requestBankRefresh(userId: string): Promise<BankLink> {
   }
   scheduleSync(userId, { reason: 'manual_refresh' });
   const updated = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
-  return toBankLinkDto(updated!);
+  if (!updated) throw notFound('Connexion bancaire');
+  return toBankLinkDto(updated);
 }
 
 /** Sans webhook, la première synchronisation avance grâce aux lectures du lien par l'application. */

@@ -15,11 +15,12 @@ import {
 import { getConfig } from '../../core/context';
 import { createModule } from '../../core/http';
 import { tooManyRequests, unauthorized } from '../../core/errors';
+import { API_PREFIX } from '../../core/paths';
 import { deleteAccount } from '../account/deletion';
 import * as auth from './service';
 
 const REFRESH_COOKIE = 'st_refresh';
-const COOKIE_PATH = '/api/auth';
+const COOKIE_PATH = `${API_PREFIX}/auth`;
 
 function platformOf(req: Request): ClientPlatform {
   const parsed = ClientPlatformSchema.safeParse(req.headers[CLIENT_PLATFORM_HEADER]);

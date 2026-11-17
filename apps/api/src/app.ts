@@ -10,6 +10,7 @@ import type { AppConfig } from './core/config';
 import { setConfig } from './core/context';
 import { errorHandler, notFoundHandler } from './core/errors';
 import { logger } from './core/logger';
+import { API_PREFIX } from './core/paths';
 import { buildOpenApiDocument } from './openapi';
 import { authModule, meModule } from './modules/auth/routes';
 import { bankModule } from './modules/bank/routes';
@@ -22,7 +23,6 @@ import { subscriptionsModule } from './modules/subscriptions/routes';
 import { transactionsModule } from './modules/transactions/routes';
 import { webhooksModule } from './modules/webhooks/routes';
 
-const API_PREFIX = '/api';
 const HEALTH_PATH = `${API_PREFIX}${healthModule.basePath}`;
 
 const isApiPath = (path: string) => path === API_PREFIX || path.startsWith(`${API_PREFIX}/`);

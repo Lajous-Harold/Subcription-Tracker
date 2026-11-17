@@ -1,5 +1,6 @@
 import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
 import { openApiRegistry } from './core/http';
+import { API_PREFIX } from './core/paths';
 
 export function buildOpenApiDocument() {
   return new OpenApiGeneratorV31(openApiRegistry.definitions).generateDocument({
@@ -10,6 +11,6 @@ export function buildOpenApiDocument() {
       description:
         'Gestion et détection d’abonnements bancaires. Erreurs en application/json, enveloppe `{ error: { code, message, fields?, hint? } }`. Montants en centimes entiers ; dates métier AAAA-MM-JJ.',
     },
-    servers: [{ url: '/api' }],
+    servers: [{ url: API_PREFIX }],
   });
 }

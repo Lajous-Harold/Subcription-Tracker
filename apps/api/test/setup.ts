@@ -9,6 +9,7 @@ import { waitForSyncs } from '../src/modules/bank/sync';
 
 export const TEST_ENV = {
   APP_ENV: 'test',
+  LOG_LEVEL: 'silent',
   MONGODB_URI: 'mongodb://unused',
   JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-1234',
   TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),

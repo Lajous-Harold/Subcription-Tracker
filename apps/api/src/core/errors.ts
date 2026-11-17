@@ -53,8 +53,9 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     sendError(res, 400, { code: 'INVALID_INPUT', message: 'Corps JSON invalide' });
     return;
   }
+  // Les identifiants d'URL sont validés en amont (IdParamsSchema) : un CastError trahit une entrée mal typée.
   if (error?.name === 'CastError') {
-    sendError(res, 404, { code: 'NOT_FOUND', message: 'Ressource introuvable' });
+    sendError(res, 400, { code: 'INVALID_INPUT', message: 'Requête invalide' });
     return;
   }
   logger.error({ err: error, path: req.path }, 'Erreur non gérée');
