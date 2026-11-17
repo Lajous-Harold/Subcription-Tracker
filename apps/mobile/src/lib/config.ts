@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
-// Seule variable d'environnement de l'application : tout `EXPO_PUBLIC_*` est embarqué dans le bundle,
-// donc jamais de secret ici.
+// Tout `EXPO_PUBLIC_*` est embarqué dans le bundle, donc jamais de secret ici.
+// Une URL relative (`/api`) vise l'API de la même origine : cas de l'export web servi par l'API.
 const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 
 function defaultApiUrl(): string {

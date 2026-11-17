@@ -6,7 +6,7 @@ import { registerUser, testApp } from './helpers';
 const app = testApp();
 
 async function loadFixtures(auth: Record<string, string>) {
-  return request(app).post('/api/dev/fixtures').set(auth).expect(200);
+  return request(app).post('/api/demo/data').set(auth).expect(200);
 }
 
 describe('détection sur données fictives', () => {
@@ -120,16 +120,16 @@ describe('détection sur données fictives', () => {
   it('les transactions de démonstration se retirent proprement', async () => {
     const user = await registerUser(app);
     await loadFixtures(user.auth);
-    await request(app).delete('/api/dev/fixtures').set(user.auth).expect(204);
+    await request(app).delete('/api/demo/data').set(user.auth).expect(204);
     const tx = await request(app).get('/api/transactions').set(user.auth).expect(200);
     expect(tx.body.items).toHaveLength(0);
     const accounts = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
     expect(accounts.body.items).toHaveLength(0);
   });
 
-  it('les routes de développement sont absentes en production', async () => {
-    const prod = (await import('./helpers')).testApp({ ENABLE_DEV_ROUTES: 'false' });
-    const user = await registerUser(prod);
-    await request(prod).post('/api/dev/fixtures').set(user.auth).expect(404);
+  it('les données de démonstration sont absentes quand ENABLE_DEMO_DATA=false', async () => {
+    const withoutDemo = testApp({ ENABLE_DEMO_DATA: 'false' });
+    const user = await registerUser(withoutDemo);
+    await request(withoutDemo).post('/api/demo/data').set(user.auth).expect(404);
   });
 });

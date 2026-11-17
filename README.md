@@ -46,14 +46,17 @@ cp apps/mobile/.env.example apps/mobile/.env
 npm run web -w @subtracker/mobile
 ```
 
-| Service               | URL                            |
-| --------------------- | ------------------------------ |
-| Application web       | http://localhost:8081          |
-| API                   | http://localhost:4000/api      |
-| Documentation Swagger | http://localhost:4000/api/docs |
-| Santé de l'API        | http://localhost:4000/health   |
+| Service                         | URL                              |
+| ------------------------------- | -------------------------------- |
+| Application web (Expo)          | http://localhost:8081            |
+| Application web (export Docker) | http://localhost:4000            |
+| API                             | http://localhost:4000/api        |
+| Documentation Swagger           | http://localhost:4000/api/docs   |
+| Santé de l'API                  | http://localhost:4000/api/health |
 
-Pour essayer la détection sans banque : créer un compte, puis ouvrir l'onglet **Banque** > **Données de démonstration** > **Charger**.
+Le mot de passe d'inscription doit compter au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un symbole.
+
+Pour essayer la détection sans banque : créer un compte, puis ouvrir l'onglet **Banque** > **Données de démonstration** > **Charger**. Ces données passent par `POST` / `DELETE /api/demo/data`, actives par défaut hors production ; `ENABLE_DEMO_DATA=true` les active en production.
 
 Pour développer l'API avec rechargement à chaud : `docker compose up -d mongo`, puis `npm run dev:api`.
 

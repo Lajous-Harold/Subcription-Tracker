@@ -20,7 +20,7 @@ describe('isolation stricte entre utilisateurs', () => {
       .set(alice.auth)
       .send({ date: '2026-02-01', amountCents: 999 })
       .expect(201);
-    await request(app).post('/api/dev/fixtures').set(alice.auth).expect(200);
+    await request(app).post('/api/demo/data').set(alice.auth).expect(200);
     const candidates = await request(app).get('/api/detection/candidates').set(alice.auth).expect(200);
     const accounts = await request(app).get('/api/bank/accounts').set(alice.auth).expect(200);
     const candidateId = candidates.body.items[0].id;

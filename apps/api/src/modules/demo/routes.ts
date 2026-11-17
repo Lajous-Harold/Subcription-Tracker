@@ -8,19 +8,19 @@ import { PaymentModel } from '../subscriptions/models';
 import { TransactionModel } from '../transactions/model';
 
 /**
- * Routes de développement : chargent un jeu de transactions fictives pour démontrer
- * la détection sans banque. Absentes en production (ENABLE_DEV_ROUTES).
+ * Données de démonstration : un jeu de transactions fictives pour démontrer la détection sans banque.
+ * Pilotées par ENABLE_DEMO_DATA (inactives par défaut en production, activables pour une démo en ligne).
  */
-export const devModule = createModule('/dev', 'Développement');
+export const demoModule = createModule('/demo', 'Démonstration');
 
 const FIXTURE_ACCOUNT_ID = 'demo';
 
-devModule.route({
+demoModule.route({
   method: 'post',
-  path: '/fixtures',
+  path: '/data',
   summary: 'Charger des transactions de démonstration et lancer la détection',
   description:
-    'Crée un « Compte de démonstration » et importe les débits fictifs (idempotent). Désactivé en production.',
+    'Crée un « Compte de démonstration » et importe les débits fictifs (idempotent). Actif si ENABLE_DEMO_DATA.',
   status: 200,
   response: DemoDataResponseSchema,
   handler: async ({ userId }) => {
@@ -62,9 +62,9 @@ devModule.route({
   },
 });
 
-devModule.route({
+demoModule.route({
   method: 'delete',
-  path: '/fixtures',
+  path: '/data',
   summary: 'Retirer les données de démonstration',
   status: 204,
   handler: async ({ userId }) => {

@@ -90,6 +90,6 @@ export const api = {
   transactions: (params: { q?: string; cursor?: string; limit?: number }) =>
     apiRequest<TransactionListResponse>('GET', `/transactions${toQueryString(params)}`),
 
-  loadDemoData: () => apiRequest<DemoDataResponse>('POST', '/dev/fixtures'),
-  removeDemoData: () => apiRequest<void>('DELETE', '/dev/fixtures'),
+  loadDemoData: () => apiRequest<DemoDataResponse>('POST', '/demo/data'),
+  removeDemoData: () => apiRequest<void>('DELETE', '/demo/data'),
 };

@@ -39,7 +39,7 @@ function DemoDataCard() {
   });
   return (
     <Card mode="outlined">
-      <Card.Title title="Données de démonstration" subtitle="Nécessite les routes de développement de l’API" />
+      <Card.Title title="Données de démonstration" subtitle="Nécessite ENABLE_DEMO_DATA côté API" />
       <Card.Content>
         <Muted>
           Importe des opérations fictives (Spotify, Netflix, salle de sport…) pour tester la détection sans banque.

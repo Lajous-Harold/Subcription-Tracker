@@ -7,7 +7,9 @@ const EnvSchema = z
     APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().default(4000),
     /** URL publique de l'API (utilisée pour la vérification des webhooks). */
-    PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
+    PUBLIC_API_URL: z.string().url().optional(),
+    /** Fournie par Render : sert d'URL publique quand PUBLIC_API_URL est absent. */
+    RENDER_EXTERNAL_URL: z.string().url().optional(),
     MONGODB_URI: z.string().min(1),
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET doit faire au moins 32 caractères'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
@@ -31,8 +33,10 @@ const EnvSchema = z
     COOKIE_SECURE: booleanString.optional(),
     /** Rétention des données bancaires, en années (décision D4 : 5 ans). */
     DATA_RETENTION_YEARS: z.coerce.number().int().positive().default(5),
-    ENABLE_DEV_ROUTES: booleanString.optional(),
+    ENABLE_DEMO_DATA: booleanString.optional(),
     ENABLE_JOBS: booleanString.default(true),
+    /** Export web de l'app Expo, servi par l'API quand il est défini. */
+    WEB_DIST_DIR: z.string().min(1).optional(),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
     POWENS_DOMAIN: z.string().optional(),
@@ -44,10 +48,11 @@ const EnvSchema = z
     POWENS_REDIRECT_URI_NATIVE: z.string().default('subtracker://powens/callback'),
     POWENS_REDIRECT_URI_WEB: z.string().default('http://localhost:8081/powens/callback'),
   })
-  .transform((env) => ({
+  .transform(({ RENDER_EXTERNAL_URL, ...env }) => ({
     ...env,
+    PUBLIC_API_URL: env.PUBLIC_API_URL ?? RENDER_EXTERNAL_URL ?? 'http://localhost:4000',
     COOKIE_SECURE: env.COOKIE_SECURE ?? env.APP_ENV === 'production',
-    ENABLE_DEV_ROUTES: env.ENABLE_DEV_ROUTES ?? env.APP_ENV !== 'production',
+    ENABLE_DEMO_DATA: env.ENABLE_DEMO_DATA ?? env.APP_ENV !== 'production',
     powensConfigured: Boolean(env.POWENS_DOMAIN && env.POWENS_CLIENT_ID && env.POWENS_CLIENT_SECRET),
   }));
 
@@ -58,9 +63,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!parsed.success) {
     const details = parsed.error.issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n');
     throw new Error(`Configuration invalide :\n${details}`);
-  }
-  if (parsed.data.APP_ENV === 'production' && parsed.data.ENABLE_DEV_ROUTES) {
-    throw new Error('ENABLE_DEV_ROUTES ne peut pas être activé en production');
   }
   return parsed.data;
 }

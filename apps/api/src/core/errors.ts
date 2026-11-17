@@ -21,6 +21,7 @@ export const invalidInput = (message: string) => badRequest('INVALID_INPUT', mes
 export const conflict = (code: string, message: string, hint?: string) => new AppError(409, code, message, hint);
 export const unauthorized = (message = 'Authentification requise') => new AppError(401, 'UNAUTHORIZED', message);
 export const tooManyRequests = (message: string) => new AppError(429, 'TOO_MANY_REQUESTS', message);
+export const serviceUnavailable = (message: string) => new AppError(503, 'SERVICE_UNAVAILABLE', message);
 
 function sendError(res: Response, status: number, error: ApiErrorResponse['error']): void {
   const body: ApiErrorResponse = { error };

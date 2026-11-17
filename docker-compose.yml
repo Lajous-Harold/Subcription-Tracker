@@ -1,6 +1,6 @@
-# Backend et base de données en conteneurs. L'application Expo tourne sur la machine.
+# Backend et base de données en conteneurs. L'API sert aussi l'export web de l'app ; Expo en développement tourne sur la machine.
 #   docker compose up -d --build
-#   API : http://localhost:4000  ·  Swagger : http://localhost:4000/api/docs
+#   App web : http://localhost:4000  ·  API : http://localhost:4000/api  ·  Swagger : http://localhost:4000/api/docs
 services:
   mongo:
     image: mongo:8
@@ -19,6 +19,8 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        ENABLE_DEMO_DATA: 'true'
     restart: unless-stopped
     env_file:
       - apps/api/.env
