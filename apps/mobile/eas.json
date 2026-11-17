@@ -13,7 +13,10 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_ENABLE_DEMO": "true" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://subscription-tracker-42pr.onrender.com/api",
+        "EXPO_PUBLIC_ENABLE_DEMO": "true"
+      }
     },
     "production": {
       "autoIncrement": true
