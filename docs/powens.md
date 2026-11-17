@@ -6,9 +6,13 @@ L'application fonctionne sans banque connectée : les données de démonstration
 
 1. Sur la console Powens, créer le compte, l'organisation, puis un domaine sandbox (`<projet>-sandbox.biapi.pro`).
 2. Dans **Client Applications** > **Add a client**, mettre en liste blanche ces URL de redirection :
-   - `subtracker://powens/callback` (Android) ;
-   - `http://localhost:8081/powens/callback` (web en développement) ;
-   - l'URL HTTPS du web déployé.
+   - `subtracker://powens/callback` (APK Android) ;
+   - `https://<service>.onrender.com/powens/callback` (app web en ligne, servie par l'API) ;
+   - `http://localhost:4000/powens/callback` (app web servie par Docker en local) ;
+   - `http://localhost:8081/powens/callback` (app web en développement, Metro).
+
+   L'API choisit seule l'URL de retour web : `<URL publique>/powens/callback` quand elle sert l'app web, `localhost:8081` sinon. `POWENS_REDIRECT_URI_WEB` force une autre valeur.
+
 3. Renseigner `POWENS_DOMAIN`, `POWENS_CLIENT_ID` et `POWENS_CLIENT_SECRET` dans `apps/api/.env`.
 4. Vérifier la configuration avec `npm run powens:smoke -w @subtracker/api`. Le script crée un utilisateur temporaire, affiche l'URL de la Webview, lit les comptes, puis supprime l'utilisateur.
 5. Webhooks (facultatifs, la synchronisation fonctionne aussi sans) :
