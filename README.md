@@ -17,13 +17,13 @@ La connexion bancaire passe par [Powens](https://www.powens.com). Tout fonctionn
 | Couche  | Technologies                                                                  |
 | ------- | ----------------------------------------------------------------------------- |
 | App     | Expo 58, Expo Router, React Native Paper, TanStack Query (web et Android)     |
-| API     | Node 22, Express 5, REST `/api`, Swagger généré depuis les schémas Zod        |
+| API     | Node 24, Express 5, REST `/api`, Swagger généré depuis les schémas Zod        |
 | Données | MongoDB 8, Mongoose                                                           |
 | Qualité | TypeScript strict, ESLint, Prettier, Jest + Supertest, GitHub Actions, Docker |
 
 ## Prérequis
 
-- Node 22 (voir `.nvmrc`) et npm 10
+- Node 24 (voir `.nvmrc`) et npm 11
 - Docker Desktop
 
 ## Démarrage

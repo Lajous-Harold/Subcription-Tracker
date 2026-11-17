@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Image de l'API. Contexte de build : racine du monorepo (packages partagés inclus).
 
-FROM node:22-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 WORKDIR /repo
 # Manifests seuls d'abord : le cache Docker évite de réinstaller si seul le code change.
 COPY package.json package-lock.json ./
@@ -21,7 +21,7 @@ RUN npm run build -w @subtracker/api
 FROM base AS prod-deps
 RUN npm ci -w @subtracker/api --omit=dev --ignore-scripts && npm rebuild argon2
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=prod-deps /repo/node_modules ./node_modules
