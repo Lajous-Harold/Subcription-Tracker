@@ -59,6 +59,14 @@ Pour développer l'API avec rechargement à chaud : `docker compose up -d mongo`
 
 Connexion bancaire réelle et application Android : voir [docs/powens.md](docs/powens.md).
 
+## Essayer l'application en ligne
+
+- **Web** : `<URL Render>`. L'API est servie sur la même origine, sous `/api`.
+- **Android** : l'APK se télécharge sur `<lien EAS>`.
+- **Expo Go** : mettre `EXPO_PUBLIC_API_URL=<URL Render>/api` dans `apps/mobile/.env`, lancer `npm run expo-go`, puis scanner le QR code avec l'appareil photo (iOS) ou avec Expo Go (Android).
+
+L'hébergement gratuit endort le service après 15 min sans trafic, et le réveil prend environ 1 min. Avant une présentation, lancer `npm run demo:check -- <URL Render>` : le script réveille le service, rejoue le parcours de démonstration avec un compte jetable, puis le supprime.
+
 ## Commandes
 
 | Commande                                                        | Rôle                                                                            |

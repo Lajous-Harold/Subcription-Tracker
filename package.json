@@ -20,7 +20,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "openapi": "npm run openapi -w @subtracker/api",
-    "expo-go": "npm run expo-go -w @subtracker/mobile"
+    "expo-go": "npm run expo-go -w @subtracker/mobile",
+    "demo:check": "node scripts/demo-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

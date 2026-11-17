@@ -1,0 +1,24 @@
+# Blueprint Render : dans le tableau de bord Render, New > Blueprint, puis choisir ce dépôt.
+# Seul MONGODB_URI est demandé à la création (chaîne de connexion du cluster MongoDB Atlas).
+services:
+  - type: web
+    name: subscription-tracker
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      # Render génère 256 bits encodés en base64 : 44 caractères, soit 32 octets une fois décodés.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+      - key: ENABLE_DEMO_DATA
+        value: 'true'
