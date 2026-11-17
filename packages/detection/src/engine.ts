@@ -87,13 +87,12 @@ function prepare(
       const normalizedLabel = normalizeLabel(tx.label);
       const normalizedCounterparty = tx.counterpartyLabel ? normalizeLabel(tx.counterpartyLabel) : '';
       const provider = matchProvider([normalizedCounterparty, normalizedLabel].filter(Boolean), compiled);
-      const base = normalizedCounterparty || normalizedLabel;
-      const merchantKey = provider ? `provider:${provider.slug}` : merchantKeyFromLabel(base);
+      const labelMerchantKey = merchantKeyFromLabel(normalizedCounterparty || normalizedLabel);
       return {
         ...tx,
         absCents: Math.abs(tx.amountCents),
-        merchantKey,
-        label: provider ? provider.name : displayLabel(merchantKeyFromLabel(base)),
+        merchantKey: provider ? `provider:${provider.slug}` : labelMerchantKey,
+        label: provider ? provider.name : displayLabel(labelMerchantKey),
         provider,
         kindKnown: tx.kind !== null && included.has(tx.kind),
       };
@@ -116,7 +115,7 @@ function withinTolerance(a: number, b: number, config: DetectionConfig): boolean
   return Math.abs(a - b) <= Math.max(reference * config.amountToleranceRatio, config.amountToleranceCents);
 }
 
-/** Regroupe par proximité de montant (deux abonnements chez un même marchand restent séparés). */
+/** Deux abonnements de montants différents chez un même marchand restent séparés. */
 function clusterByAmount(items: PreparedTransaction[], config: DetectionConfig): PreparedTransaction[][] {
   const clusters: PreparedTransaction[][] = [];
   for (const tx of [...items].sort((a, b) => a.absCents - b.absCents)) {
@@ -140,7 +139,7 @@ function mergePriceChanges(clusters: PreparedTransaction[][]): PreparedTransacti
     const previous = merged[merged.length - 1];
     const previousLast = previous?.[previous.length - 1];
     const first = cluster[0];
-    if (previous && previousLast && first && previous.length >= 2 && cluster.length >= 1) {
+    if (previous && previousLast && first && previous.length >= 2) {
       const gap = daysBetween(previousLast.date, first.date);
       const ratio = first.absCents / previousLast.absCents;
       if (gap >= 20 && gap <= 40 && ratio >= 0.65 && ratio <= 1.5) {
@@ -199,18 +198,18 @@ function analyzeSeries(
   }
 
   // Un intervalle compte s'il correspond à 1 ou 2 mois (un mois sans prélèvement est toléré).
-  const normalized: number[] = [];
+  const monthlyIntervals: number[] = [];
   let skippedMonths = 0;
   for (const interval of intervals) {
     const months = Math.round(interval / AVERAGE_MONTH_DAYS);
     if (months >= 1 && months <= 2 && Math.abs(interval - months * AVERAGE_MONTH_DAYS) <= 4 * months + 1) {
-      normalized.push(interval / months);
+      monthlyIntervals.push(interval / months);
       skippedMonths += months - 1;
     }
   }
-  if (normalized.length === 0) return null;
-  const monthlyRatio = normalized.length / intervals.length;
-  const intervalDays = median(normalized);
+  if (monthlyIntervals.length === 0) return null;
+  const monthlyRatio = monthlyIntervals.length / intervals.length;
+  const intervalDays = median(monthlyIntervals);
   if (
     monthlyRatio < config.minMonthlyRatio ||
     intervalDays < config.monthlyMedianMin ||
@@ -221,22 +220,24 @@ function analyzeSeries(
 
   const amounts = series.map((tx) => tx.absCents);
   const medianCents = Math.round(median(amounts));
-  const amountCv = mean(amounts) === 0 ? 0 : stdev(amounts) / mean(amounts);
-  const days = uniqueDates.map((value) => Number(value.slice(8, 10)));
-  const dayOfMonth = Math.min(31, Math.max(1, Math.round(median(days))));
-  const intervalStdev = stdev(normalized);
-  const daySpread = stdev(days.map((day) => Math.min(day, 28)));
+  const minCents = Math.min(...amounts);
+  const maxCents = Math.max(...amounts);
+  const amountVariation = mean(amounts) === 0 ? 0 : stdev(amounts) / mean(amounts);
+  const paymentDays = uniqueDates.map((value) => Number(value.slice(8, 10)));
+  const dayOfMonth = Math.min(31, Math.max(1, Math.round(median(paymentDays))));
+  const intervalStdev = stdev(monthlyIntervals);
+  const daySpread = stdev(paymentDays.map((day) => Math.min(day, 28)));
   const occurrences = uniqueDates.length;
   const provider = first.provider;
-  const sinceLast = daysBetween(last.date, options.today);
-  const stale = sinceLast > intervalDays + config.staleGraceDays;
+  const daysSinceLastPayment = daysBetween(last.date, options.today);
+  const stale = daysSinceLastPayment > intervalDays + config.staleGraceDays;
   const unknownKinds = series.some((tx) => !tx.kindKnown);
 
   let score = occurrences >= 5 ? 0.7 : occurrences === 4 ? 0.65 : occurrences === 3 ? 0.55 : 0.35;
   if (intervalStdev <= 2) score += 0.1;
   else if (intervalStdev <= 4) score += 0.05;
-  if (amountCv <= 0.02) score += 0.1;
-  else if (amountCv <= 0.1) score += 0.05;
+  if (amountVariation <= 0.02) score += 0.1;
+  else if (amountVariation <= 0.1) score += 0.05;
   if (daySpread <= 2) score += 0.05;
   if (provider) score += 0.15;
   if (monthlyRatio < 1) score -= 0.1 * (1 - monthlyRatio) * 2;
@@ -260,22 +261,22 @@ function analyzeSeries(
   const reasons = [
     `${occurrences} paiements entre le ${formatFrDate(first.date)} et le ${formatFrDate(last.date)}`,
     `Rythme mensuel : tous les ~${Math.round(intervalDays)} jours${intervalStdev <= 2 ? ', très régulier' : ''}`,
-    Math.min(...amounts) === Math.max(...amounts)
+    minCents === maxCents
       ? `Montant stable : ${formatMoney(medianCents, currency)}`
-      : amountCv <= 0.02
-        ? `Montant quasi stable : ~${formatMoney(medianCents, currency)} (de ${formatMoney(Math.min(...amounts), currency)} à ${formatMoney(Math.max(...amounts), currency)})`
-        : `Montant variable : de ${formatMoney(Math.min(...amounts), currency)} à ${formatMoney(Math.max(...amounts), currency)}`,
+      : amountVariation <= 0.02
+        ? `Montant quasi stable : ~${formatMoney(medianCents, currency)} (de ${formatMoney(minCents, currency)} à ${formatMoney(maxCents, currency)})`
+        : `Montant variable : de ${formatMoney(minCents, currency)} à ${formatMoney(maxCents, currency)}`,
     `Prélevé vers le ${dayOfMonth} du mois`,
   ];
   if (provider) reasons.push(`Fournisseur reconnu : ${provider.name}`);
   if (occurrences === 2) reasons.push('Seulement 2 paiements : à confirmer');
   if (monthlyRatio < 1 || skippedMonths > 0) reasons.push('Certains mois sans paiement observé');
   if (unknownKinds) reasons.push("Type d'opération inhabituel pour un abonnement");
-  if (stale) reasons.push(`Aucun paiement depuis ${sinceLast} jours : abonnement peut-être terminé`);
+  if (stale) reasons.push(`Aucun paiement depuis ${daysSinceLastPayment} jours : abonnement peut-être terminé`);
 
-  const bucket = Math.round(Math.log2(Math.max(medianCents, 1)));
+  const amountBucket = Math.round(Math.log2(Math.max(medianCents, 1)));
   return {
-    signature: `${first.accountId}|${first.merchantKey}|${bucket}`,
+    signature: `${first.accountId}|${first.merchantKey}|${amountBucket}`,
     merchantKey: first.merchantKey,
     label: first.label,
     providerId: provider?.id ?? null,
@@ -285,8 +286,8 @@ function analyzeSeries(
     occurrences,
     amount: {
       medianCents,
-      minCents: Math.min(...amounts),
-      maxCents: Math.max(...amounts),
+      minCents,
+      maxCents,
       lastCents: last.absCents,
     },
     intervalDays: Math.round(intervalDays * 10) / 10,
@@ -301,10 +302,7 @@ function analyzeSeries(
   };
 }
 
-/**
- * Détecte les paiements mensuels récurrents susceptibles d'être des abonnements.
- * Fonction pure : aucune I/O, résultat déterministe pour une même entrée.
- */
+/** Pure et déterministe : aucune I/O, même entrée, même résultat. */
 export function detectSubscriptions(
   transactions: EngineTransaction[],
   providers: ProviderPattern[],

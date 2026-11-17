@@ -21,13 +21,12 @@ export type CancellationMethod = z.infer<typeof CancellationMethodSchema>;
 
 export const CancellationProcedureSchema = z.object({
   method: CancellationMethodSchema,
-  /** Lien vers le parcours officiel de résiliation, lorsqu'il existe. */
   url: z.string().url().nullable(),
-  /** Instructions alternatives, toujours présentes. */
+  /** Toujours présentes, même quand `url` existe. */
   instructions: z.string(),
-  /** Page consultée pour établir la procédure. */
+  /** Page consultée pour établir la procédure (distincte du parcours `url`). */
   sourceUrl: z.string().url().nullable(),
-  /** Date à laquelle la procédure a été confirmée sur la page officielle ; null si non vérifiée. */
+  /** Date de confirmation sur la page officielle ; null si non vérifiée. */
   lastVerifiedAt: IsoDateSchema.nullable(),
 });
 export type CancellationProcedure = z.infer<typeof CancellationProcedureSchema>;
@@ -50,3 +49,4 @@ export const ProviderListQuerySchema = z.object({
 });
 
 export const ProviderListResponseSchema = z.object({ items: z.array(ProviderSchema) });
+export type ProviderListResponse = z.infer<typeof ProviderListResponseSchema>;

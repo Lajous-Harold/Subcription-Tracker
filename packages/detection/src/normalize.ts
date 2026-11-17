@@ -1,8 +1,5 @@
-/**
- * Normalisation des libellés bancaires.
- * Objectif : obtenir une clé marchand stable malgré les dates, références et préfixes
- * que les banques ajoutent (« CB SPOTIFY P3A1B2C3 STOCKHOLM 12/10 » → « SPOTIFY STOCKHOLM »).
- */
+// Les banques ajoutent dates, références et préfixes aux libellés : on les retire pour obtenir
+// une clé marchand stable (« CB SPOTIFY P3A1B2C3 STOCKHOLM 12/10 » → « SPOTIFY STOCKHOLM »).
 
 const PREFIXES = [
   /\bPRLV\s+SEPA\b/g,
@@ -17,20 +14,22 @@ const PREFIXES = [
   /\bFACTURE\b/g,
 ];
 
-const NOISE = [
-  /\bX\d{4}\b/g, // numéro de carte masqué
-  /\b\d{1,2}[/.-]\d{1,2}([/.-]\d{2,4})?\b/g, // dates
-  /\b\d{1,2}H\d{2}\b/g, // heures
-  /\b(REF|MANDAT|ID|NUM|RUM|ICS)\s*[:.]?\s*\S+/g, // références SEPA
-];
+const MASKED_CARD_NUMBER = /\bX\d{4}\b/g;
+const DATE = /\b\d{1,2}[/.-]\d{1,2}([/.-]\d{2,4})?\b/g;
+const TIME = /\b\d{1,2}H\d{2}\b/g;
+const SEPA_REFERENCE = /\b(REF|MANDAT|ID|NUM|RUM|ICS)\s*[:.]?\s*\S+/g;
+const NOISE = [MASKED_CARD_NUMBER, DATE, TIME, SEPA_REFERENCE];
 
 const STOP_WORDS = new Set(['SAS', 'SA', 'SARL', 'LTD', 'INC', 'EUR', 'FR', 'COM', 'WWW', 'HTTPS', 'HTTP']);
 
-export function stripAccents(value: string): string {
+function stripAccents(value: string): string {
   return value.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-/** Libellé normalisé : majuscules, sans accents, sans préfixes bancaires, dates ni références. */
+const isNumeric = (token: string): boolean => /^\d+$/.test(token);
+
+const isReferenceCode = (token: string): boolean => token.length >= 6 && /\d/.test(token) && /[A-Z]/.test(token);
+
 export function normalizeLabel(raw: string): string {
   let value = stripAccents(raw).toUpperCase();
   for (const pattern of NOISE) value = value.replace(pattern, ' ');
@@ -39,21 +38,20 @@ export function normalizeLabel(raw: string): string {
   const tokens = value
     .split(' ')
     .filter(Boolean)
-    // jetons purement numériques ou codes de référence mêlant lettres et chiffres
-    .filter((token) => !/^\d+$/.test(token))
-    .filter((token) => !(token.length >= 6 && /\d/.test(token) && /[A-Z]/.test(token)))
+    .filter((token) => !isNumeric(token))
+    .filter((token) => !isReferenceCode(token))
     .filter((token) => !STOP_WORDS.has(token));
   return tokens.join(' ');
 }
 
-/** Clé marchand : les deux premiers mots significatifs du libellé normalisé. */
+const MERCHANT_KEY_WORD_COUNT = 2;
+
 export function merchantKeyFromLabel(normalized: string): string {
-  const tokens = normalized.split(' ').filter((token) => token.length > 1);
-  const key = tokens.slice(0, 2).join(' ');
+  const significantWords = normalized.split(' ').filter((word) => word.length > 1);
+  const key = significantWords.slice(0, MERCHANT_KEY_WORD_COUNT).join(' ');
   return key || normalized || 'INCONNU';
 }
 
-/** Libellé lisible dérivé de la clé (« SPOTIFY STOCKHOLM » → « Spotify Stockholm »). */
 export function displayLabel(key: string): string {
   return key
     .toLowerCase()

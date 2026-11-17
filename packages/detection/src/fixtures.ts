@@ -1,16 +1,12 @@
-import { addMonthsClamped, iso, parse } from './dates';
+import { DAY_MS, addMonthsClamped, parseIsoDate, toIsoDate } from './dates';
 import type { EngineTransaction } from './types';
 
-/**
- * Jeux de transactions fictives, déterministes et relatifs à une date de référence.
- * Ils servent aux tests « golden » du moteur et au chargement de données de démo
- * (application utilisable sans banque connectée).
- */
+// Transactions fictives, déterministes et relatives à une date de référence : elles servent
+// aux tests « golden » du moteur et aux données de démonstration (application utilisable sans banque).
 
 export interface FixtureScenario {
   id: string;
   description: string;
-  /** Résultat attendu du moteur. */
   expect:
     | { detected: false }
     | { detected: true; stale?: boolean; providerSlug?: string; maxLevel?: 'low' | 'medium' | 'high' };
@@ -51,14 +47,12 @@ export const FIXTURE_SCENARIOS: FixtureScenario[] = [
   { id: 'salary', description: 'Salaire (crédit)', expect: { detected: false } },
 ];
 
-const DAY_MS = 86_400_000;
-
-/** Décale un samedi/dimanche au lundi suivant, comme un prélèvement réel. */
+/** Comme un vrai prélèvement, une échéance tombant le week-end passe au lundi. */
 function nextBusinessDay(value: string): string {
-  const date = parse(value);
+  const date = parseIsoDate(value);
   const weekday = date.getUTCDay();
-  if (weekday === 6) return iso(new Date(date.getTime() + 2 * DAY_MS));
-  if (weekday === 0) return iso(new Date(date.getTime() + DAY_MS));
+  if (weekday === 6) return toIsoDate(new Date(date.getTime() + 2 * DAY_MS));
+  if (weekday === 0) return toIsoDate(new Date(date.getTime() + DAY_MS));
   return value;
 }
 
@@ -80,19 +74,14 @@ function monthlyDates(today: string, day: number, fromMonthsAgo: number, toMonth
   return dates;
 }
 
-function frShort(value: string): string {
+function formatDayMonth(value: string): string {
   return `${value.slice(8, 10)}/${value.slice(5, 7)}`;
 }
 
-/**
- * Génère les transactions de tous les scénarios.
- * @param today date de référence AAAA-MM-JJ
- * @param accountId compte auquel rattacher les transactions
- */
 export function generateFixtureTransactions(today: string, accountId = 'fixture-account'): FixtureTransaction[] {
-  const txs: FixtureTransaction[] = [];
+  const transactions: FixtureTransaction[] = [];
   let counter = 0;
-  const push = (
+  const addTransaction = (
     scenario: string,
     date: string,
     amountCents: number,
@@ -101,7 +90,7 @@ export function generateFixtureTransactions(today: string, accountId = 'fixture-
     currency = 'EUR',
   ) => {
     counter += 1;
-    txs.push({
+    transactions.push({
       id: `fx-${scenario}-${String(counter).padStart(4, '0')}`,
       accountId,
       date,
@@ -116,61 +105,73 @@ export function generateFixtureTransactions(today: string, accountId = 'fixture-
   };
 
   for (const date of monthlyDates(today, 5, 8, 0)) {
-    push('spotify', date, -1099, `CB SPOTIFY P3A1B2C3 STOCKHOLM ${frShort(date)}`, 'card');
+    addTransaction('spotify', date, -1099, `CB SPOTIFY P3A1B2C3 STOCKHOLM ${formatDayMonth(date)}`, 'card');
   }
 
   monthlyDates(today, 12, 8, 0).forEach((date, index) => {
-    push('netflix-price-change', date, index < 5 ? -1349 : -1599, `CB NETFLIX.COM ${frShort(date)}`, 'card');
+    addTransaction(
+      'netflix-price-change',
+      date,
+      index < 5 ? -1349 : -1599,
+      `CB NETFLIX.COM ${formatDayMonth(date)}`,
+      'card',
+    );
   });
 
-  const fx = seededRandom(42);
+  const fxJitter = seededRandom(42);
   for (const date of monthlyDates(today, 3, 7, 0)) {
-    const cents = -(2290 + Math.round(fx() * 60));
-    push('chatgpt-fx', date, cents, `CB OPENAI *CHATGPT SUBSCR ${frShort(date)} USD 25,00`, 'card');
+    const cents = -(2290 + Math.round(fxJitter() * 60));
+    addTransaction('chatgpt-fx', date, cents, `CB OPENAI *CHATGPT SUBSCR ${formatDayMonth(date)} USD 25,00`, 'card');
   }
 
   for (const date of monthlyDates(today, 18, 6, 0)) {
-    push('claude', date, -2160, `CB ANTHROPIC CLAUDE.AI SUBSCRIPTION ${frShort(date)}`, 'card');
+    addTransaction('claude', date, -2160, `CB ANTHROPIC CLAUDE.AI SUBSCRIPTION ${formatDayMonth(date)}`, 'card');
   }
 
   monthlyDates(today, 1, 6, 0).forEach((date, index) => {
-    push('gym', date, -2999, `PRLV SEPA ATHLETIC CLUB LYON REF ${9384756 + index} MANDAT FR12ZZZ123456`, 'order');
+    addTransaction(
+      'gym',
+      date,
+      -2999,
+      `PRLV SEPA ATHLETIC CLUB LYON REF ${9384756 + index} MANDAT FR12ZZZ123456`,
+      'order',
+    );
   });
 
   for (const date of monthlyDates(today, 20, 10, 4)) {
-    push('stopped', date, -1199, `CB DEEZER PARIS ${frShort(date)}`, 'card');
+    addTransaction('stopped', date, -1199, `CB DEEZER PARIS ${formatDayMonth(date)}`, 'card');
   }
 
   for (const date of monthlyDates(today, 8, 1, 0)) {
-    push('two-payments', date, -690, `CB LECTURE PLUS MAGAZINE ${frShort(date)}`, 'card');
+    addTransaction('two-payments', date, -690, `CB LECTURE PLUS MAGAZINE ${formatDayMonth(date)}`, 'card');
   }
 
   const oneOff = nextBusinessDay(addMonthsClamped(today, -2, 14));
-  push('one-off', oneOff, -6990, `CB AMAZON PRIME FR ${frShort(oneOff)}`, 'card');
+  addTransaction('one-off', oneOff, -6990, `CB AMAZON PRIME FR ${formatDayMonth(oneOff)}`, 'card');
 
   for (const date of [addMonthsClamped(today, -13, 9), addMonthsClamped(today, -1, 9)]) {
-    push('annual', nextBusinessDay(date), -9900, 'CB MICROSOFT 365 FAMILLE ANNUEL', 'card');
+    addTransaction('annual', nextBusinessDay(date), -9900, 'CB MICROSOFT 365 FAMILLE ANNUEL', 'card');
   }
 
-  const grocery = seededRandom(7);
+  const groceryJitter = seededRandom(7);
   for (let daysAgo = 180; daysAgo >= 0; daysAgo -= 7) {
-    const date = iso(new Date(parse(today).getTime() - daysAgo * DAY_MS));
-    push(
+    const date = toIsoDate(new Date(parseIsoDate(today).getTime() - daysAgo * DAY_MS));
+    addTransaction(
       'groceries',
       date,
-      -(2300 + Math.round(grocery() * 6400)),
-      `CB CARREFOUR MARKET LYON ${frShort(date)}`,
+      -(2300 + Math.round(groceryJitter() * 6400)),
+      `CB CARREFOUR MARKET LYON ${formatDayMonth(date)}`,
       'card',
     );
   }
 
   for (const date of monthlyDates(today, 2, 8, 0)) {
-    push('rent', date, -75000, 'VIR SEPA LOYER APPARTEMENT M DUPONT', 'transfer');
+    addTransaction('rent', date, -75000, 'VIR SEPA LOYER APPARTEMENT M DUPONT', 'transfer');
   }
 
   for (const date of monthlyDates(today, 28, 8, 1)) {
-    push('salary', date, 185000, 'VIR SEPA SALAIRE EMPLOYEUR', 'transfer');
+    addTransaction('salary', date, 185000, 'VIR SEPA SALAIRE EMPLOYEUR', 'transfer');
   }
 
-  return txs.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  return transactions.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 }

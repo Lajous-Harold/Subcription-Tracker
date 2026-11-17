@@ -46,9 +46,10 @@ export const CandidateListQuerySchema = z.object({
 });
 
 export const CandidateListResponseSchema = z.object({ items: z.array(CandidateSchema) });
+export type CandidateListResponse = z.infer<typeof CandidateListResponseSchema>;
 
 /**
- * Accepter un candidat. Chaque champ fourni devient `declared`.
+ * Chaque champ fourni devient `declared`.
  * `mergeIntoSubscriptionId` rattache les paiements à un abonnement existant au lieu d'en créer un.
  */
 export const AcceptCandidateBodySchema = z.object({
@@ -69,3 +70,6 @@ export const DetectionRunResponseSchema = z.object({
   pending: z.number().int(),
 });
 export type DetectionRunResponse = z.infer<typeof DetectionRunResponseSchema>;
+
+export const DemoDataResponseSchema = z.object({ imported: z.number().int(), detection: DetectionRunResponseSchema });
+export type DemoDataResponse = z.infer<typeof DemoDataResponseSchema>;

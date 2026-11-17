@@ -8,14 +8,12 @@ export const DashboardSummarySchema = z.object({
   trackedCount: z.number().int(),
   monthly: z.object({
     totalCents: CentsSchema,
-    /** Part tirée des paiements bancaires observés. */
     observedCents: CentsSchema,
-    /** Part déclarée ou corrigée par l'utilisateur. */
     declaredCents: CentsSchema,
   }),
   /** Projection sur 12 mois : toujours une estimation. */
   annualProjectionCents: CentsSchema,
-  /** Abonnements dans une autre devise, exclus du total. */
+  /** Abonnements dans une autre devise, exclus des totaux. */
   excludedOtherCurrencies: z.array(z.object({ currency: CurrencySchema, count: z.number().int() })),
   upcoming: z.array(
     z.object({

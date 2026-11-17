@@ -2,13 +2,11 @@ import { z } from 'zod';
 import { CentsSchema, ClientPlatformSchema, CurrencySchema, IdSchema, IsoDateSchema, TimestampSchema } from './common';
 
 /**
- * Statut affiché, dérivé de l'état Powens de la connexion :
- * - connected : synchronisation possible
- * - pending : connexion créée, première synchronisation pas encore terminée
- * - action_required : l'utilisateur doit se reconnecter (SCA, mot de passe…)
- * - temporary_error : indisponibilité côté banque ou Powens, nouvel essai automatique
- * - not_supported : la source n'est pas supportée
- * - error : état inconnu
+ * Dérivé de l'état Powens de la connexion :
+ * - pending : première synchronisation pas encore terminée
+ * - action_required : reconnexion nécessaire (SCA, mot de passe…)
+ * - temporary_error : indisponibilité banque ou Powens, nouvel essai automatique
+ * - error : état Powens inconnu
  * - disconnected : connexion supprimée côté Powens
  */
 export const BankLinkStatusSchema = z.enum([
@@ -39,6 +37,7 @@ export const BankLinkSchema = z.object({
 export type BankLink = z.infer<typeof BankLinkSchema>;
 
 export const BankLinkResponseSchema = z.object({ link: BankLinkSchema.nullable() });
+export type BankLinkResponse = z.infer<typeof BankLinkResponseSchema>;
 
 export const ConnectFlowSchema = z.enum(['connect', 'reconnect', 'manage']);
 export type ConnectFlow = z.infer<typeof ConnectFlowSchema>;
@@ -70,20 +69,19 @@ export const BankAccountSchema = z.object({
   type: z.string().nullable(),
   currency: CurrencySchema,
   balanceCents: CentsSchema.nullable(),
-  /** Partagé avec l'application via le consentement Powens. */
+  /** Décidé dans le consentement Powens. */
   sharedWithApp: z.boolean(),
-  /** Choix local : inclure ce compte dans l'analyse. */
+  /** Choix local de l'utilisateur, indépendant du consentement Powens. */
   analyzed: z.boolean(),
   lastUpdate: TimestampSchema.nullable(),
 });
 export type BankAccount = z.infer<typeof BankAccountSchema>;
 
 export const BankAccountListResponseSchema = z.object({ items: z.array(BankAccountSchema) });
+export type BankAccountListResponse = z.infer<typeof BankAccountListResponseSchema>;
 
 export const UpdateBankAccountBodySchema = z.object({ analyzed: z.boolean() });
 export type UpdateBankAccountBody = z.infer<typeof UpdateBankAccountBodySchema>;
-
-export const SyncResponseSchema = z.object({ started: z.boolean() });
 
 export const TransactionSchema = z.object({
   id: IdSchema,
@@ -113,3 +111,4 @@ export const TransactionListResponseSchema = z.object({
   items: z.array(TransactionSchema),
   nextCursor: z.string().nullable(),
 });
+export type TransactionListResponse = z.infer<typeof TransactionListResponseSchema>;

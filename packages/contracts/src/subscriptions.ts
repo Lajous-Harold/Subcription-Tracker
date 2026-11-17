@@ -3,16 +3,13 @@ import { CentsSchema, CurrencySchema, IdSchema, IsoDateSchema, MoneySchema, Time
 import { CancellationMethodSchema, ProviderSummarySchema } from './providers';
 
 /**
- * - active : suivi en cours
- * - cancellation_pending : résiliation engagée par l'utilisateur
- * - cancelled : résiliation déclarée terminée par l'utilisateur
- * - archived : plus suivi, conservé pour l'historique
- * Le système ne change jamais un statut seul.
+ * Seul l'utilisateur change un statut, jamais le système.
+ * `archived` : plus suivi, conservé pour l'historique.
  */
 export const SubscriptionStatusSchema = z.enum(['active', 'cancellation_pending', 'cancelled', 'archived']);
 export type SubscriptionStatus = z.infer<typeof SubscriptionStatusSchema>;
 
-/** MVP : mensuel uniquement. L'énumération est prête pour d'autres périodicités. */
+/** MVP : mensuel uniquement ; l'énumération laisse place à d'autres périodicités. */
 export const CadenceSchema = z.enum(['monthly']);
 export type Cadence = z.infer<typeof CadenceSchema>;
 
@@ -59,7 +56,6 @@ export const SubscriptionSchema = z.object({
   lastPaymentDate: IsoDateSchema.nullable(),
   /** Signal : aucun paiement observé 7 jours après l'échéance attendue. N'entraîne aucun changement de statut. */
   paymentMissing: z.boolean(),
-  /** Liée à une détection bancaire. */
   bankLinked: z.boolean(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -107,7 +103,7 @@ export const UpdateSubscriptionBodySchema = z
   .refine((body) => Object.keys(body).length > 0, 'Aucune modification fournie');
 export type UpdateSubscriptionBody = z.infer<typeof UpdateSubscriptionBodySchema>;
 
-/** Champs que l'utilisateur peut remettre en automatique. */
+/** Champs dont l'utilisateur peut abandonner la valeur `declared` pour revenir aux données observées. */
 export const ResettableFieldSchema = z.enum(['amount', 'billingDay', 'nextDueDate']);
 export type ResettableField = z.infer<typeof ResettableFieldSchema>;
 
@@ -116,6 +112,7 @@ export const SubscriptionListQuerySchema = z.object({
 });
 
 export const SubscriptionListResponseSchema = z.object({ items: z.array(SubscriptionSchema) });
+export type SubscriptionListResponse = z.infer<typeof SubscriptionListResponseSchema>;
 
 export const PaymentSchema = z.object({
   id: IdSchema,
@@ -132,6 +129,7 @@ export const PaymentSchema = z.object({
 export type Payment = z.infer<typeof PaymentSchema>;
 
 export const PaymentListResponseSchema = z.object({ items: z.array(PaymentSchema) });
+export type PaymentListResponse = z.infer<typeof PaymentListResponseSchema>;
 
 export const CreatePaymentBodySchema = z.object({
   date: IsoDateSchema,

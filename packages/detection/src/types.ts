@@ -1,13 +1,12 @@
 /**
- * Format d'entrée neutre : aucune notion Powens ici.
- * Les transactions bancaires réelles comme les fixtures sont converties vers ce format.
+ * Format neutre, sans notion Powens : transactions réelles et fixtures sont converties vers ce format.
  */
 export interface EngineTransaction {
   id: string;
   accountId: string;
   /** AAAA-MM-JJ */
   date: string;
-  /** Négatif pour un débit, en centimes. */
+  /** Négatif pour un débit. */
   amountCents: number;
   currency: string;
   label: string;
@@ -40,7 +39,6 @@ export interface DetectionConfig {
   monthlyMedianMax: number;
   /** Part minimale d'intervalles compatibles avec un rythme mensuel. */
   minMonthlyRatio: number;
-  /** Seuils de confiance. */
   highThreshold: number;
   mediumThreshold: number;
   lowThreshold: number;
@@ -49,7 +47,7 @@ export interface DetectionConfig {
 }
 
 export interface DetectionOptions {
-  /** Date de référence AAAA-MM-JJ (aujourd'hui). */
+  /** AAAA-MM-JJ, injectée pour garder la détection déterministe. */
   today: string;
   config?: Partial<DetectionConfig>;
 }

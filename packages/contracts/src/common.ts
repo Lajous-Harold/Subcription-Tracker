@@ -1,9 +1,8 @@
 import { z } from 'zod';
 
-/** Identifiant MongoDB sérialisé (24 caractères hexadécimaux). */
+/** ObjectId MongoDB sérialisé. */
 export const IdSchema = z.string().regex(/^[a-f0-9]{24}$/i, 'Identifiant invalide');
 
-/** Date métier sans heure, au format AAAA-MM-JJ. */
 export const IsoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date attendue au format AAAA-MM-JJ')
@@ -13,13 +12,11 @@ export const IsoDateSchema = z
     return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === value;
   }, 'Date invalide');
 
-/** Horodatage ISO 8601 complet. */
 export const TimestampSchema = z.string().datetime({ offset: true });
 
-/** Code devise ISO 4217. */
 export const CurrencySchema = z.string().regex(/^[A-Z]{3}$/, 'Devise ISO 4217 attendue (ex. EUR)');
 
-/** Montant en centimes entiers : jamais de flottants pour l'argent. */
+/** Centimes entiers : jamais de flottants pour l'argent. */
 export const CentsSchema = z.number().int().safe();
 
 export const MoneySchema = z.object({
@@ -29,9 +26,8 @@ export const MoneySchema = z.object({
 export type Money = z.infer<typeof MoneySchema>;
 
 /**
- * Provenance d'une information :
  * - observed : tirée de transactions bancaires
- * - declared : saisie ou corrigée par l'utilisateur (jamais réécrite par le système)
+ * - declared : saisie ou corrigée par l'utilisateur, jamais réécrite par le système
  * - estimated : calculée par l'application
  */
 export const OriginSchema = z.enum(['observed', 'declared', 'estimated']);
@@ -55,18 +51,7 @@ export const ProblemSchema = z.object({
 });
 export type Problem = z.infer<typeof ProblemSchema>;
 
-export const PaginationQuerySchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-});
-
-export const paginated = <T extends z.ZodType>(item: T) =>
-  z.object({
-    items: z.array(item),
-    nextCursor: z.string().nullable(),
-  });
-
-/** En-tête permettant au backend d'adapter le transport du refresh token. */
 export const ClientPlatformSchema = z.enum(['web', 'native']);
 export type ClientPlatform = z.infer<typeof ClientPlatformSchema>;
+/** Le backend choisit le transport du refresh token (cookie ou corps) d'après cet en-tête. */
 export const CLIENT_PLATFORM_HEADER = 'x-client-platform';
