@@ -12,7 +12,7 @@ const EnvSchema = z
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET doit faire au moins 32 caractères'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-    /** 32 octets encodés en base64 : chiffrement AES-256-GCM des tokens Powens. */
+    /** Clé AES-256-GCM des tokens Powens. */
     TOKEN_ENCRYPTION_KEY: z
       .string()
       .refine(
@@ -53,7 +53,6 @@ const EnvSchema = z
 
 export type AppConfig = z.infer<typeof EnvSchema>;
 
-/** Valide l'environnement : l'API refuse de démarrer s'il manque un secret. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = EnvSchema.safeParse(env);
   if (!parsed.success) {

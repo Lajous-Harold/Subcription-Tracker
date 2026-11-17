@@ -38,7 +38,9 @@ afterEach(async () => {
   setPowensClient(null);
   const collections = await mongoose.connection.db!.collections();
   await Promise.all(
-    collections.filter((c) => c.collectionName !== 'providers').map((collection) => collection.deleteMany({})),
+    collections
+      .filter((collection) => collection.collectionName !== 'providers')
+      .map((collection) => collection.deleteMany({})),
   );
 }, 60_000);
 

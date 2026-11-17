@@ -6,11 +6,13 @@ import { AppError, conflict, unauthorized } from '../../core/errors';
 import { SessionModel, UserModel, type UserDoc } from './models';
 import { signAccessToken } from './tokens';
 
-/** Hash factice : garde un temps de réponse identique quand l'email n'existe pas. */
+/** Vérifié quand l'email est inconnu : temps de réponse constant, contre l'énumération des comptes. */
 let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= argon2.hash('mot-de-passe-factice-pour-temps-constant'));
 
-export function toUserDto(user: Pick<UserDoc, '_id' | 'email' | 'createdAt'>): User {
+const invalidCredentials = () => new AppError(401, 'invalid_credentials', 'Email ou mot de passe incorrect');
+
+function toUserDto(user: Pick<UserDoc, '_id' | 'email' | 'createdAt'>): User {
   return { id: user._id.toString(), email: user.email, createdAt: user.createdAt.toISOString() };
 }
 
@@ -63,10 +65,10 @@ export async function verifyCredentials(email: string, password: string): Promis
   const user = await UserModel.findOne({ email }).lean<UserDoc>();
   if (!user) {
     await argon2.verify(await getDummyHash(), password).catch(() => false);
-    throw new AppError(401, 'invalid_credentials', 'Email ou mot de passe incorrect');
+    throw invalidCredentials();
   }
   const valid = await argon2.verify(user.passwordHash, password).catch(() => false);
-  if (!valid) throw new AppError(401, 'invalid_credentials', 'Email ou mot de passe incorrect');
+  if (!valid) throw invalidCredentials();
   return user;
 }
 
@@ -75,7 +77,7 @@ export async function login(email: string, password: string, platform: ClientPla
   return issueSession(user, platform);
 }
 
-/** Rotation : chaque refresh token ne sert qu'une fois. Une réutilisation révoque toute la famille. */
+/** Chaque refresh token ne sert qu'une fois : une réutilisation révoque toute la famille (vol probable). */
 export async function refresh(refreshToken: string, platform: ClientPlatform) {
   const session = await SessionModel.findOne({ refreshTokenHash: sha256(refreshToken) });
   if (!session) throw unauthorized('Session invalide');

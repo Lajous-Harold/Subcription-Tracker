@@ -8,17 +8,17 @@ import {
   type SubscriptionDetail,
 } from '@subtracker/contracts';
 import { detectSubscriptions, type DetectionCandidate, type EngineTransaction } from '@subtracker/detection';
-import { badRequest, conflict, notFound } from '../../core/errors';
+import { conflict, notFound } from '../../core/errors';
 import { BankAccountModel, type BankAccountDoc } from '../bank/models';
 import { ProviderModel, type ProviderDoc } from '../providers/model';
 import { getProviderPatterns, toProviderSummary } from '../providers/service';
 import { TransactionModel, type TransactionDoc } from '../transactions/model';
 import { SubscriptionModel, type SubscriptionDoc } from '../subscriptions/models';
-import { attachTransaction, eventsPush, getSubscription } from '../subscriptions/service';
+import { assertProvider, attachTransaction, eventsPush, getSubscription } from '../subscriptions/service';
 import { CandidateModel, type CandidateDoc } from './model';
 
-/** Deux montants appartiennent à la même série (tolère une hausse de prix). */
-function amountClose(a: number, b: number): boolean {
+/** Tolère une hausse de prix (25 %, au moins 1 €) sans ouvrir une nouvelle série. */
+function isSameAmountSeries(a: number, b: number): boolean {
   return Math.abs(a - b) <= Math.max(0.25 * Math.max(a, b), 100);
 }
 
@@ -59,7 +59,7 @@ function candidateFields(result: DetectionCandidate) {
   };
 }
 
-/** Rattache les transactions d'une série à un abonnement suivi et met à jour ce qui n'est pas déclaré. */
+/** Rattache les nouveaux paiements de la série ; les champs `declared` de l'abonnement ne sont jamais réécrits. */
 async function absorbIntoSubscription(
   userId: string,
   subscription: SubscriptionDoc,
@@ -100,7 +100,7 @@ async function absorbIntoSubscription(
 }
 
 /**
- * Rejoue la détection pour un utilisateur. Idempotent :
+ * Idempotent :
  * - série d'un abonnement suivi → nouveaux paiements rattachés, montant/jour mis à jour sauf champs déclarés ;
  * - candidat rejeté ou écarté → jamais reproposé ;
  * - nouvelle série → candidat `pending`.
@@ -128,8 +128,8 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
       (sub) =>
         sub.detection?.accountId.toString() === result.accountId &&
         sub.detection.merchantKey === result.merchantKey &&
-        (amountClose(sub.amount.cents, result.amount.lastCents) ||
-          amountClose(sub.amount.cents, result.amount.medianCents)),
+        (isSameAmountSeries(sub.amount.cents, result.amount.lastCents) ||
+          isSameAmountSeries(sub.amount.cents, result.amount.medianCents)),
     );
     if (subscription) {
       attachedPayments += await absorbIntoSubscription(userId, subscription, result, transactions);
@@ -146,7 +146,7 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
       (candidate) =>
         candidate.accountId.toString() === result.accountId &&
         candidate.merchantKey === result.merchantKey &&
-        amountClose(candidate.amount.medianCents, result.amount.medianCents),
+        isSameAmountSeries(candidate.amount.medianCents, result.amount.medianCents),
     );
     if (existing) {
       if (existing.status === 'pending') {
@@ -171,7 +171,7 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
 
 async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Candidate[]> {
   const providerIds = [...new Set(docs.map((doc) => doc.providerId?.toString()).filter(Boolean))] as string[];
-  const [providers, manualSubs] = await Promise.all([
+  const [providers, manualSubscriptions] = await Promise.all([
     ProviderModel.find({ _id: { $in: providerIds } }, { slug: 1, name: 1, category: 1 }).lean<ProviderDoc[]>(),
     providerIds.length
       ? SubscriptionModel.find(
@@ -185,18 +185,18 @@ async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Ca
         ).lean<SubscriptionDoc[]>()
       : Promise.resolve([] as SubscriptionDoc[]),
   ]);
-  const providerMap = new Map(providers.map((doc) => [doc._id.toString(), toProviderSummary(doc)]));
+  const providerById = new Map(providers.map((doc) => [doc._id.toString(), toProviderSummary(doc)]));
   return docs.map((doc) => {
     const providerId = doc.providerId?.toString() ?? null;
-    const suggestion =
+    const mergeSuggestion =
       doc.status === 'pending' && providerId
-        ? manualSubs.find((sub) => sub.providerId?.toString() === providerId)
+        ? manualSubscriptions.find((sub) => sub.providerId?.toString() === providerId)
         : undefined;
     return {
       id: doc._id.toString(),
       label: doc.label,
       merchantKey: doc.merchantKey,
-      provider: providerId ? (providerMap.get(providerId) ?? null) : null,
+      provider: providerId ? (providerById.get(providerId) ?? null) : null,
       accountId: doc.accountId.toString(),
       currency: doc.currency,
       occurrences: doc.occurrences,
@@ -213,7 +213,7 @@ async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Ca
       status: doc.status,
       transactionIds: doc.transactionIds.map((id) => id.toString()),
       subscriptionId: doc.subscriptionId?.toString() ?? null,
-      suggestedSubscriptionId: suggestion?._id.toString() ?? null,
+      suggestedSubscriptionId: mergeSuggestion?._id.toString() ?? null,
       updatedAt: doc.updatedAt.toISOString(),
     };
   });
@@ -232,7 +232,6 @@ async function findPendingCandidate(userId: string, id: string): Promise<Candida
   return doc;
 }
 
-/** Accepter : crée l'abonnement (ou fusionne dans un existant) et rattache les paiements observés. */
 export async function acceptCandidate(
   userId: string,
   id: string,
@@ -268,9 +267,7 @@ export async function acceptCandidate(
     );
     subscriptionId = target._id;
   } else {
-    if (body.providerId && !(await ProviderModel.exists({ _id: body.providerId }))) {
-      throw badRequest('unknown_provider', 'Fournisseur inconnu');
-    }
+    await assertProvider(body.providerId);
     const providerId = body.providerId !== undefined ? body.providerId : candidate.providerId;
     const created = await SubscriptionModel.create({
       userId,

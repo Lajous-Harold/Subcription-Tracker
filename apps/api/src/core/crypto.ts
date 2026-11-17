@@ -1,6 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-/** Jeton aléatoire URL-safe. */
 export function randomToken(bytes = 32): string {
   return randomBytes(bytes).toString('base64url');
 }
@@ -15,10 +14,7 @@ export function safeEqual(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-/**
- * Chiffrement AES-256-GCM (IV aléatoire par valeur).
- * Format stocké : base64(iv).base64(tag).base64(ciphertext)
- */
+/** AES-256-GCM, IV aléatoire par valeur. Format stocké : base64(iv).base64(tag).base64(ciphertext). */
 export function encrypt(plain: string, keyBase64: string): string {
   const key = Buffer.from(keyBase64, 'base64');
   const iv = randomBytes(12);

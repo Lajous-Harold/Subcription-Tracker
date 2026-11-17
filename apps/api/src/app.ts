@@ -21,7 +21,7 @@ import { subscriptionsModule } from './modules/subscriptions/routes';
 import { transactionsModule } from './modules/transactions/routes';
 import { webhooksModule } from './modules/webhooks/routes';
 
-export const API_PREFIX = '/api';
+const API_PREFIX = '/api';
 
 export function createApp(config: AppConfig) {
   setConfig(config);
@@ -49,7 +49,7 @@ export function createApp(config: AppConfig) {
   });
 
   const api = Router();
-  // Les webhooks ont besoin du corps brut pour vérifier la signature : montés avant le parseur JSON.
+  // Monté avant express.json() : la vérification HMAC exige le corps brut.
   api.use(webhooksModule.basePath, webhooksModule.router);
   api.use(express.json({ limit: '100kb' }));
   api.use(cookieParser());

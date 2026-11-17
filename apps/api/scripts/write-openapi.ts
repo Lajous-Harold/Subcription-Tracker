@@ -1,4 +1,4 @@
-/* Écrit la spécification OpenAPI dans apps/api/openapi.json (sans base de données). */
+/* Sans base de données : createApp() suffit à enregistrer les routes dans le registre OpenAPI. */
 import { writeFileSync } from 'node:fs';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/core/config';

@@ -22,7 +22,7 @@ import { toPaymentDto, toSubscriptionDetailDto, toSubscriptionDto, type PaymentS
 
 const MAX_EVENTS = 50;
 
-export interface SubscriptionEventInput {
+interface SubscriptionEventInput {
   actor: 'user' | 'system';
   type: string;
   field?: string | null;
@@ -57,10 +57,7 @@ async function providerSummaries(ids: (Types.ObjectId | null | undefined)[]): Pr
   return new Map(docs.map((doc) => [doc._id.toString(), toProviderSummary(doc)]));
 }
 
-export async function paymentStats(
-  userId: string,
-  subscriptionIds: Types.ObjectId[],
-): Promise<Map<string, PaymentStats>> {
+async function paymentStats(userId: string, subscriptionIds: Types.ObjectId[]): Promise<Map<string, PaymentStats>> {
   if (subscriptionIds.length === 0) return new Map();
   const rows = await PaymentModel.aggregate<{ _id: Types.ObjectId; lastPaymentDate: string }>([
     { $match: { userId: new Types.ObjectId(userId), subscriptionId: { $in: subscriptionIds } } },
@@ -104,7 +101,7 @@ export async function getSubscription(userId: string, id: string): Promise<Subsc
   );
 }
 
-async function assertProvider(providerId: string | null | undefined): Promise<void> {
+export async function assertProvider(providerId: string | null | undefined): Promise<void> {
   if (!providerId) return;
   if (!(await ProviderModel.exists({ _id: providerId }))) {
     throw badRequest('unknown_provider', 'Fournisseur inconnu');
@@ -139,24 +136,24 @@ export async function updateSubscription(
   const now = new Date();
   const set: Record<string, unknown> = {};
   const events: SubscriptionEventInput[] = [];
-  const change = (field: string, from: unknown, to: unknown) => {
+  const recordChange = (field: string, from: unknown, to: unknown) => {
     if (JSON.stringify(from) !== JSON.stringify(to)) events.push({ actor: 'user', type: 'updated', field, from, to });
   };
 
   if (body.label !== undefined) {
     set.label = body.label;
-    change('label', current.label, body.label);
+    recordChange('label', current.label, body.label);
   }
   if (body.providerId !== undefined) {
     await assertProvider(body.providerId);
     set.providerId = body.providerId;
     if (body.providerId) set.customProviderName = null;
-    change('provider', current.providerId?.toString() ?? null, body.providerId);
+    recordChange('provider', current.providerId?.toString() ?? null, body.providerId);
   }
   if (body.customProviderName !== undefined) {
     set.customProviderName = body.customProviderName;
     if (body.customProviderName) set.providerId = null;
-    change('customProviderName', current.customProviderName ?? null, body.customProviderName);
+    recordChange('customProviderName', current.customProviderName ?? null, body.customProviderName);
   }
   if (body.amountCents !== undefined || body.currency !== undefined) {
     const amount = {
@@ -166,7 +163,7 @@ export async function updateSubscription(
       updatedAt: now,
     };
     set.amount = amount;
-    change(
+    recordChange(
       'amount',
       { cents: current.amount.cents, currency: current.amount.currency },
       { cents: amount.cents, currency: amount.currency },
@@ -174,19 +171,19 @@ export async function updateSubscription(
   }
   if (body.billingDay !== undefined) {
     set.billingDay = body.billingDay === null ? null : { value: body.billingDay, origin: 'declared', updatedAt: now };
-    change('billingDay', current.billingDay?.value ?? null, body.billingDay);
+    recordChange('billingDay', current.billingDay?.value ?? null, body.billingDay);
   }
   if (body.nextDueDate !== undefined) {
     set.nextDueDateDeclared = body.nextDueDate === null ? null : { value: body.nextDueDate, updatedAt: now };
-    change('nextDueDate', current.nextDueDateDeclared?.value ?? null, body.nextDueDate);
+    recordChange('nextDueDate', current.nextDueDateDeclared?.value ?? null, body.nextDueDate);
   }
   if (body.status !== undefined) {
     set.status = body.status;
-    change('status', current.status, body.status);
+    recordChange('status', current.status, body.status);
   }
   if (body.notes !== undefined) {
     set.notes = body.notes;
-    change('notes', current.notes ?? null, body.notes);
+    recordChange('notes', current.notes ?? null, body.notes);
   }
 
   await SubscriptionModel.updateOne(
@@ -196,7 +193,7 @@ export async function updateSubscription(
   return getSubscription(userId, id);
 }
 
-/** Remet un champ en automatique : la donnée observée ou estimée reprend la main. */
+/** La donnée observée ou estimée reprend la main sur la valeur déclarée. */
 export async function resetField(userId: string, id: string, field: ResettableField): Promise<SubscriptionDetail> {
   const current = await findOwned(userId, id);
   const now = new Date();
@@ -214,8 +211,8 @@ export async function resetField(userId: string, id: string, field: ResettableFi
       set.billingDay = null;
     } else {
       const days = bankPayments.map((payment) => Number(payment.date.slice(8, 10))).sort((a, b) => a - b);
-      const median = days[Math.floor(days.length / 2)] ?? 1;
-      set.billingDay = { value: median, origin: 'observed', updatedAt: now };
+      const medianDay = days[Math.floor(days.length / 2)] ?? 1;
+      set.billingDay = { value: medianDay, origin: 'observed', updatedAt: now };
     }
   } else {
     set.nextDueDateDeclared = null;
@@ -265,20 +262,19 @@ export async function addManualPayment(userId: string, id: string, body: CreateP
   return toPaymentDto(doc.toObject() as PaymentDoc);
 }
 
-/**
- * Cherche un paiement manuel proche (montant égal, ±3 jours) : suggestion de fusion,
- * jamais automatique.
- */
+const DUPLICATE_WINDOW_DAYS = 3;
+
+/** Paiement manuel de même montant à quelques jours près : signalé comme doublon possible, jamais fusionné d'office. */
 async function findManualDuplicate(
   userId: string,
   subscriptionId: Types.ObjectId,
   date: string,
   amountCents: number,
 ): Promise<Types.ObjectId | null> {
-  const day = 86_400_000;
+  const windowMs = DUPLICATE_WINDOW_DAYS * 86_400_000;
   const center = new Date(`${date}T00:00:00Z`).getTime();
-  const from = new Date(center - 3 * day).toISOString().slice(0, 10);
-  const to = new Date(center + 3 * day).toISOString().slice(0, 10);
+  const from = new Date(center - windowMs).toISOString().slice(0, 10);
+  const to = new Date(center + windowMs).toISOString().slice(0, 10);
   const match = await PaymentModel.findOne(
     { userId, subscriptionId, source: 'manual', amountCents, date: { $gte: from, $lte: to } },
     { _id: 1 },
@@ -286,7 +282,7 @@ async function findManualDuplicate(
   return match?._id ?? null;
 }
 
-/** Rattache une transaction bancaire comme paiement (utilisé par l'utilisateur et par la détection). */
+/** Renvoie `null` si la transaction est déjà rattachée (index unique). */
 export async function attachTransaction(
   userId: string,
   subscriptionId: Types.ObjectId,

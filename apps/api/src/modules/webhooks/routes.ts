@@ -28,7 +28,7 @@ const PayloadSchema = z
   })
   .passthrough();
 
-function verify(req: express.Request, rawBody: string): void {
+function verifySignature(req: express.Request, rawBody: string): void {
   const config = getConfig();
   const secret = config.POWENS_WEBHOOK_SECRET;
   if (!secret) throw new AppError(401, 'webhook_not_configured', 'Webhooks non configurés');
@@ -42,14 +42,14 @@ function verify(req: express.Request, rawBody: string): void {
   const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
   // Le format exact de « endpoint » dans la signature est à confirmer sur la sandbox :
   // on accepte le chemin seul ou l'URL publique complète.
-  const candidates = [path, `${config.PUBLIC_API_URL.replace(/\/$/, '')}${path}`];
-  const valid = candidates.some((endpoint) =>
+  const acceptedEndpoints = [path, `${config.PUBLIC_API_URL.replace(/\/$/, '')}${path}`];
+  const valid = acceptedEndpoints.some((endpoint) =>
     verifyWebhookSignature({ secret, method: req.method, endpoint, date, payload: rawBody, signature }),
   );
   if (!valid) throw new AppError(401, 'invalid_signature', 'Signature invalide');
 }
 
-async function findLink(payload: z.infer<typeof PayloadSchema>): Promise<BankLinkDoc | null> {
+async function findLinkForPayload(payload: z.infer<typeof PayloadSchema>): Promise<BankLinkDoc | null> {
   const powensUserId = payload.user?.id ?? payload.connection?.id_user ?? payload.id_user;
   if (powensUserId) {
     const byUser = await BankLinkModel.findOne({ powensUserId }).lean<BankLinkDoc>();
@@ -74,7 +74,7 @@ webhooksModule.route({
   middlewares: [express.raw({ type: '*/*', limit: '20mb', inflate: true })],
   handler: async ({ req, params }) => {
     const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
-    verify(req, rawBody);
+    verifySignature(req, rawBody);
 
     let payload: z.infer<typeof PayloadSchema>;
     try {
@@ -93,7 +93,7 @@ webhooksModule.route({
     }
 
     if (!(HANDLED_EVENTS as readonly string[]).includes(params.event)) return { received: true };
-    const link = await findLink(payload);
+    const link = await findLinkForPayload(payload);
     if (!link) {
       logger.warn({ event: params.event }, 'Webhook Powens sans utilisateur correspondant');
       return { received: true };

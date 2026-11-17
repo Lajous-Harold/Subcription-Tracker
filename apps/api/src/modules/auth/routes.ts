@@ -1,6 +1,5 @@
 import type { CookieOptions, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
 import {
   AuthResponseSchema,
   CLIENT_PLATFORM_HEADER,
@@ -19,7 +18,7 @@ import { unauthorized } from '../../core/errors';
 import { deleteAccount } from '../account/deletion';
 import * as auth from './service';
 
-export const REFRESH_COOKIE = 'st_refresh';
+const REFRESH_COOKIE = 'st_refresh';
 const COOKIE_PATH = '/api/auth';
 
 function platformOf(req: Request): ClientPlatform {
@@ -156,5 +155,3 @@ meModule.route({
     res.clearCookie(REFRESH_COOKIE, cookieOptions());
   },
 });
-
-export const AuthHeadersSchema = z.object({ [CLIENT_PLATFORM_HEADER]: ClientPlatformSchema.optional() });

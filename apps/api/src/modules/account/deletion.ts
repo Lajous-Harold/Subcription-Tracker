@@ -7,11 +7,8 @@ import { PaymentModel, SubscriptionModel } from '../subscriptions/models';
 import { TransactionModel } from '../transactions/model';
 
 /**
- * Suppression complète d'un compte, rejouable étape par étape :
- * 1. Powens : connexion puis utilisateur (mis en file de nouvel essai en cas d'échec) ;
- * 2. purge locale de toutes les collections par userId ;
- * 3. sessions puis utilisateur.
- * Ne résilie aucun contrat chez les fournisseurs.
+ * Rejouable étape par étape : Powens d'abord (mis en file de nouvel essai en cas d'échec),
+ * puis les données locales, et l'utilisateur en dernier. Ne résilie aucun contrat chez les fournisseurs.
  */
 export async function deleteAccount(userId: string): Promise<void> {
   const link = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();

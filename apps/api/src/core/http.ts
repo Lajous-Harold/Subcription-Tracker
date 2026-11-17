@@ -4,7 +4,6 @@ import { z, type ZodType } from 'zod';
 import { ProblemSchema } from '@subtracker/contracts';
 import { requireAuth } from '../modules/auth/middleware';
 
-/** Registre OpenAPI unique, alimenté par chaque route déclarée. */
 export const openApiRegistry = new OpenAPIRegistry();
 
 openApiRegistry.registerComponent('securitySchemes', 'bearerAuth', {
@@ -21,7 +20,7 @@ interface RouteContext<B, Q, P> {
   body: B;
   query: Q;
   params: P;
-  /** Défini pour toute route authentifiée. */
+  /** Chaîne vide sur une route publique (`auth: false`). */
   userId: string;
 }
 
@@ -37,7 +36,6 @@ interface RouteSpec<B extends ZodType | undefined, Q extends ZodType | undefined
   params?: P;
   status?: number;
   response?: ZodType;
-  responseDescription?: string;
   /** Codes d'erreur documentés en plus de 400/401. */
   errors?: number[];
   middlewares?: RequestHandler[];
@@ -52,10 +50,7 @@ interface RouteSpec<B extends ZodType | undefined, Q extends ZodType | undefined
 
 const problemContent = { 'application/problem+json': { schema: ProblemSchema } };
 
-/**
- * Module HTTP : chaque route déclarée est validée par Zod et documentée dans l'OpenAPI
- * à partir des mêmes schémas, ce qui empêche toute dérive entre code et Swagger.
- */
+/** Les mêmes schémas Zod valident chaque route et la documentent : pas de dérive entre code et Swagger. */
 export function createModule(basePath: string, tag: string) {
   const router = Router();
 
@@ -91,11 +86,8 @@ export function createModule(basePath: string, tag: string) {
       responses: {
         [status]:
           status === 204 || !spec.response
-            ? { description: spec.responseDescription ?? 'Succès' }
-            : {
-                description: spec.responseDescription ?? 'Succès',
-                content: { 'application/json': { schema: spec.response } },
-              },
+            ? { description: 'Succès' }
+            : { description: 'Succès', content: { 'application/json': { schema: spec.response } } },
         ...errorResponses,
       },
     });

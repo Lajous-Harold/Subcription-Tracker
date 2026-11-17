@@ -4,20 +4,14 @@
  * puis supprime l'utilisateur. Usage : npm run powens:smoke -w @subtracker/api
  */
 import { loadConfig } from '../src/core/config';
-import { PowensClient } from '../src/modules/powens/client';
+import { createPowensClient } from '../src/modules/powens';
 
 const config = loadConfig();
 if (!config.powensConfigured) {
   process.stderr.write('POWENS_DOMAIN, POWENS_CLIENT_ID et POWENS_CLIENT_SECRET sont requis dans apps/api/.env\n');
   process.exit(1);
 }
-const client = new PowensClient({
-  domain: config.POWENS_DOMAIN!,
-  clientId: config.POWENS_CLIENT_ID!,
-  clientSecret: config.POWENS_CLIENT_SECRET!,
-  webviewBaseUrl: config.POWENS_WEBVIEW_BASE_URL,
-  lang: config.POWENS_WEBVIEW_LANG,
-});
+const client = createPowensClient(config);
 
 const user = await client.createUser();
 process.stdout.write(`1. Utilisateur Powens créé (id ${user.powensUserId ?? 'inconnu'})\n`);

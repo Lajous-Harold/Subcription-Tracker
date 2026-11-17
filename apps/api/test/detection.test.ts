@@ -69,7 +69,6 @@ describe('détection sur données fictives', () => {
     const after = await request(app).get(`/api/subscriptions/${sub.body.id}`).set(user.auth).expect(200);
     expect(after.body.amount).toMatchObject({ value: { cents: 1499 }, origin: 'declared' });
 
-    // Remise en automatique : le montant observé reprend la main.
     const reset = await request(app)
       .post(`/api/subscriptions/${sub.body.id}/fields/amount/reset`)
       .set(user.auth)

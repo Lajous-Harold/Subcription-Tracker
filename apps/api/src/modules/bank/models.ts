@@ -80,7 +80,6 @@ const powensCleanupSchema = new Schema(
   { timestamps: true },
 );
 
-export type PowensCleanupDoc = InferSchemaType<typeof powensCleanupSchema> & { _id: Types.ObjectId };
 export const PowensCleanupModel = model('PowensCleanup', powensCleanupSchema);
 
 /** Webhooks déjà traités (`id_webhook_data`), conservés 30 jours. */

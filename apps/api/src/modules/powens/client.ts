@@ -2,15 +2,17 @@ import { createHmac } from 'node:crypto';
 import { safeEqual } from '../../core/crypto';
 
 /**
- * Adaptateur HTTP unique vers l'API Powens 2.0.
- * Aucune règle métier, aucun accès base : seul détenteur des secrets Powens.
+ * Adaptateur HTTP vers l'API Powens 2.0 : aucune règle métier, aucun accès base, seul détenteur des secrets.
  * Endpoints utilisés (documentation officielle) :
- *   POST /auth/init, GET /auth/token/code, GET /users/me,
+ *   POST /auth/init, GET /auth/token/code,
  *   GET|PUT|DELETE /users/me/connections/{id}, GET /users/me/accounts, GET /users/me/transactions,
  *   DELETE /users/me
  */
 
-export interface PowensConfig {
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_TRANSACTION_PAGES = 500;
+
+interface PowensConfig {
   /** Sous-domaine ou domaine complet (ex. `monprojet-sandbox` ou `monprojet-sandbox.biapi.pro`). */
   domain: string;
   clientId: string;
@@ -31,7 +33,7 @@ export interface PowensConnection {
   connector?: { name?: string | null } | null;
 }
 
-export interface PowensAccount {
+interface PowensAccount {
   id: number;
   id_connection?: number | null;
   name?: string | null;
@@ -69,7 +71,7 @@ export class PowensError extends Error {
   }
 }
 
-export type WebviewFlow = 'connect' | 'reconnect' | 'manage';
+type WebviewFlow = 'connect' | 'reconnect' | 'manage';
 
 export class PowensClient {
   readonly host: string;
@@ -96,7 +98,7 @@ export class PowensClient {
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (response.status === 204) return undefined as T;
     const text = await response.text();
@@ -167,7 +169,7 @@ export class PowensClient {
     if (lastUpdate) params.set('last_update', lastUpdate);
     let next: string | null = `/users/me/transactions`;
     let query: string | undefined = `${params.toString()}&all`;
-    for (let page = 0; next && page < 500; page += 1) {
+    for (let page = 0; next && page < MAX_TRANSACTION_PAGES; page += 1) {
       const data: { transactions?: PowensTransaction[]; _links?: { next?: { href?: string } | null } } =
         await this.request('GET', next, { token, query });
       yield data.transactions ?? [];
@@ -198,26 +200,21 @@ export class PowensClient {
   }
 }
 
-/**
- * Vérifie la signature HMAC d'un webhook Powens :
- * BI-Signature = base64(HMAC-SHA256(secret, `${METHOD}.${endpoint}.${date}.${payload}`)).
- */
-export function verifyWebhookSignature(params: {
+interface WebhookSignatureInput {
   secret: string;
   method: string;
   endpoint: string;
   date: string;
   payload: string;
-  signature: string;
-}): boolean {
-  const expected = createHmac('sha256', params.secret)
-    .update(`${params.method.toUpperCase()}.${params.endpoint}.${params.date}.${params.payload}`)
-    .digest('base64');
-  return safeEqual(expected, params.signature);
 }
 
-export function signWebhookForTests(params: Omit<Parameters<typeof verifyWebhookSignature>[0], 'signature'>): string {
+/** Format Powens : BI-Signature = base64(HMAC-SHA256(secret, `${METHOD}.${endpoint}.${date}.${payload}`)). */
+export function computeWebhookSignature(params: WebhookSignatureInput): string {
   return createHmac('sha256', params.secret)
     .update(`${params.method.toUpperCase()}.${params.endpoint}.${params.date}.${params.payload}`)
     .digest('base64');
+}
+
+export function verifyWebhookSignature(params: WebhookSignatureInput & { signature: string }): boolean {
+  return safeEqual(computeWebhookSignature(params), params.signature);
 }

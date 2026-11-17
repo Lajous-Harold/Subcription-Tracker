@@ -21,7 +21,7 @@ import {
   type BankAccountDoc,
   type BankLinkDoc,
 } from './models';
-import { isConsentExpiringSoon, mapConnectionState } from './status';
+import { isConsentExpiringSoon, linkFieldsFromConnection } from './status';
 import { refreshAccounts, scheduleSync } from './sync';
 
 const CONNECT_SESSION_TTL_MS = 30 * 60 * 1000;
@@ -45,7 +45,7 @@ export function toBankLinkDto(link: BankLinkDoc, now = new Date()): BankLink {
   };
 }
 
-export function toBankAccountDto(account: BankAccountDoc): BankAccount {
+function toBankAccountDto(account: BankAccountDoc): BankAccount {
   return {
     id: account._id.toString(),
     name: account.name,
@@ -58,12 +58,7 @@ export function toBankAccountDto(account: BankAccountDoc): BankAccount {
   };
 }
 
-export async function getBankLink(userId: string): Promise<BankLink | null> {
-  const link = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
-  return link ? toBankLinkDto(link) : null;
-}
-
-/** Crée l'utilisateur Powens au premier besoin. Le token est chiffré et ne quitte jamais le backend. */
+/** L'utilisateur Powens n'est créé qu'au premier parcours Webview. */
 async function ensureBankLink(userId: string): Promise<BankLinkDoc> {
   const existing = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
   if (existing) return existing;
@@ -78,8 +73,8 @@ async function ensureBankLink(userId: string): Promise<BankLinkDoc> {
     return doc.toObject() as BankLinkDoc;
   } catch (error) {
     if ((error as { code?: number }).code === 11000) {
-      const raced = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
-      if (raced) return raced;
+      const createdConcurrently = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
+      if (createdConcurrently) return createdConcurrently;
     }
     throw error;
   }
@@ -135,9 +130,8 @@ const WEBVIEW_ERRORS: Record<string, string> = {
 };
 
 /**
- * Retour de la Webview. Le `state` (usage unique, lié à l'utilisateur) prouve que le parcours
- * a été lancé par cet utilisateur ; la relecture de la connexion avec SON token Powens prouve
- * qu'elle lui appartient.
+ * Le `state` (usage unique, lié à l'utilisateur) prouve que le parcours a été lancé par cet utilisateur ;
+ * la relecture de la connexion avec SON token Powens prouve qu'elle lui appartient.
  */
 export async function completeConnectSession(userId: string, body: CompleteConnectSessionBody): Promise<BankLink> {
   const session = await ConnectSessionModel.findOneAndUpdate(
@@ -177,16 +171,7 @@ export async function completeConnectSession(userId: string, body: CompleteConne
 
   await BankLinkModel.updateOne(
     { _id: link._id, userId },
-    {
-      $set: {
-        connectionId,
-        connectorName: connection.connector?.name ?? link.connectorName ?? null,
-        status: connection.last_update || connection.state ? mapConnectionState(connection.state) : 'pending',
-        powensState: connection.state ?? null,
-        powensMessage: connection.error_message ?? null,
-        consentExpiresAt: connection.expire ? new Date(connection.expire) : null,
-      },
-    },
+    { $set: { connectionId, ...linkFieldsFromConnection(connection, link.connectorName) } },
   );
 
   await refreshAccounts(userId).catch((error) => logger.warn({ err: error }, 'Lecture des comptes impossible'));
@@ -213,7 +198,7 @@ export async function updateAccount(userId: string, accountId: string, analyzed:
   return toBankAccountDto(account);
 }
 
-/** Purge locale des comptes Powens et de leurs transactions. Les abonnements restent. */
+/** Les abonnements suivis sont conservés. */
 async function purgeLocalBankData(userId: string): Promise<void> {
   const accounts = await BankAccountModel.find({ userId, source: 'powens' }, { _id: 1 }).lean<BankAccountDoc[]>();
   const accountIds = accounts.map((account) => account._id);
@@ -226,22 +211,21 @@ async function purgeLocalBankData(userId: string): Promise<void> {
   await BankAccountModel.deleteMany({ userId, source: 'powens' });
 }
 
-/**
- * Supprime la connexion chez Powens puis l'utilisateur Powens. En cas d'échec, la suppression
- * distante est mise en file pour être retentée sans bloquer la purge locale.
- */
+function ignoreNotFound(error: unknown): void {
+  if (!(error instanceof PowensError && error.status === 404)) throw error;
+}
+
+async function deletePowensUser(target: Pick<BankLinkDoc, 'powensTokenEnc' | 'connectionId'>): Promise<void> {
+  const client = getPowensClient();
+  const token = powensToken(target);
+  if (target.connectionId) await client.deleteConnection(token, target.connectionId).catch(ignoreNotFound);
+  await client.deleteUser(token).catch(ignoreNotFound);
+}
+
+/** En cas d'échec, la suppression distante est mise en file de nouvel essai pour ne pas bloquer la purge locale. */
 export async function deleteRemoteBankData(link: BankLinkDoc): Promise<void> {
   try {
-    const client = getPowensClient();
-    const token = powensToken(link);
-    if (link.connectionId) {
-      await client.deleteConnection(token, link.connectionId).catch((error) => {
-        if (!(error instanceof PowensError && error.status === 404)) throw error;
-      });
-    }
-    await client.deleteUser(token).catch((error) => {
-      if (!(error instanceof PowensError && error.status === 404)) throw error;
-    });
+    await deletePowensUser(link);
   } catch (error) {
     logger.warn({ err: error }, 'Suppression Powens en échec : mise en file de nouvel essai');
     await PowensCleanupModel.create({
@@ -268,10 +252,7 @@ export async function retryPowensCleanups(): Promise<number> {
   let done = 0;
   for (const item of pending) {
     try {
-      const client = getPowensClient();
-      const token = decrypt(item.powensTokenEnc, getConfig().TOKEN_ENCRYPTION_KEY);
-      if (item.connectionId) await client.deleteConnection(token, item.connectionId).catch(ignoreNotFound);
-      await client.deleteUser(token).catch(ignoreNotFound);
+      await deletePowensUser(item);
       await PowensCleanupModel.deleteOne({ _id: item._id });
       done += 1;
     } catch (error) {
@@ -282,8 +263,4 @@ export async function retryPowensCleanups(): Promise<number> {
     }
   }
   return done;
-}
-
-function ignoreNotFound(error: unknown): void {
-  if (!(error instanceof PowensError && error.status === 404)) throw error;
 }

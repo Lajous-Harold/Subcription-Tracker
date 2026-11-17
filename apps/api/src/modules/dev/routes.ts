@@ -1,5 +1,4 @@
-import { z } from 'zod';
-import { DetectionRunResponseSchema, todayIso } from '@subtracker/contracts';
+import { DemoDataResponseSchema, todayIso } from '@subtracker/contracts';
 import { generateFixtureTransactions } from '@subtracker/detection';
 import { createModule } from '../../core/http';
 import { BankAccountModel } from '../bank/models';
@@ -23,7 +22,7 @@ devModule.route({
   description:
     'Crée un « Compte de démonstration » et importe les débits fictifs (idempotent). Désactivé en production.',
   status: 200,
-  response: z.object({ imported: z.number().int(), detection: DetectionRunResponseSchema }),
+  response: DemoDataResponseSchema,
   handler: async ({ userId }) => {
     const account = await BankAccountModel.findOneAndUpdate(
       { userId, source: 'fixture', externalId: FIXTURE_ACCOUNT_ID },

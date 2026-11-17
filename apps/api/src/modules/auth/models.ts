@@ -29,5 +29,4 @@ const sessionSchema = new Schema(
 );
 sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-export type SessionDoc = InferSchemaType<typeof sessionSchema> & { _id: Types.ObjectId };
 export const SessionModel = model('Session', sessionSchema);

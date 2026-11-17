@@ -5,7 +5,7 @@ import { logger } from '../../core/logger';
 import { ProviderModel, type ProviderDoc } from './model';
 import { PROVIDER_CATALOG } from './catalog';
 
-export function toProviderDto(doc: ProviderDoc): Provider {
+function toProviderDto(doc: ProviderDoc): Provider {
   return {
     id: doc._id.toString(),
     slug: doc.slug,
@@ -45,10 +45,6 @@ export async function getProviderBySlug(slug: string): Promise<Provider> {
   return toProviderDto(doc);
 }
 
-export async function providerExists(id: string): Promise<boolean> {
-  return Boolean(await ProviderModel.exists({ _id: id }));
-}
-
 export async function getProviderPatterns(): Promise<ProviderPattern[]> {
   const docs = await ProviderModel.find({}, { slug: 1, name: 1, matchPatterns: 1 }).lean<ProviderDoc[]>();
   return docs.map((doc) => ({
@@ -59,7 +55,7 @@ export async function getProviderPatterns(): Promise<ProviderPattern[]> {
   }));
 }
 
-/** Synchronise le catalogue (idempotent, par slug). Appelé au démarrage. */
+/** Idempotent (upsert par slug) : appelé à chaque démarrage. */
 export async function ensureProviderCatalog(): Promise<number> {
   const operations = PROVIDER_CATALOG.map((entry) => ({
     updateOne: {

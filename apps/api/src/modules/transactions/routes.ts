@@ -9,6 +9,10 @@ export const transactionsModule = createModule('/transactions', 'Transactions');
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+function encodeCursor(tx: Pick<TransactionDoc, 'date' | '_id'>): string {
+  return Buffer.from(`${tx.date}|${tx._id.toString()}`).toString('base64url');
+}
+
 function decodeCursor(cursor: string): { date: string; id: string } {
   const [date, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
   if (!date || !id || !Types.ObjectId.isValid(id)) throw badRequest('invalid_cursor', 'Curseur invalide');
@@ -38,11 +42,13 @@ transactionsModule.route({
       .limit(query.limit + 1)
       .lean<TransactionDoc[]>();
     const page = docs.slice(0, query.limit);
-    const links = await PaymentModel.find(
+    const linkedPayments = await PaymentModel.find(
       { userId, transactionId: { $in: page.map((tx) => tx._id) } },
       { transactionId: 1, subscriptionId: 1 },
     ).lean();
-    const linkMap = new Map(links.map((link) => [link.transactionId?.toString(), link.subscriptionId.toString()]));
+    const subscriptionIdByTransactionId = new Map(
+      linkedPayments.map((payment) => [payment.transactionId?.toString(), payment.subscriptionId.toString()]),
+    );
     const last = page[page.length - 1];
     const items: Transaction[] = page.map((tx) => ({
       id: tx._id.toString(),
@@ -55,14 +61,8 @@ transactionsModule.route({
       counterpartyLabel: tx.counterpartyLabel ?? null,
       bankType: tx.bankType ?? null,
       coming: tx.coming,
-      subscriptionId: linkMap.get(tx._id.toString()) ?? null,
+      subscriptionId: subscriptionIdByTransactionId.get(tx._id.toString()) ?? null,
     }));
-    return {
-      items,
-      nextCursor:
-        docs.length > query.limit && last
-          ? Buffer.from(`${last.date}|${last._id.toString()}`).toString('base64url')
-          : null,
-    };
+    return { items, nextCursor: docs.length > query.limit && last ? encodeCursor(last) : null };
   },
 });

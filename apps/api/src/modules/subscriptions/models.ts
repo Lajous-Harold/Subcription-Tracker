@@ -68,7 +68,6 @@ const subscriptionSchema = new Schema(
     },
     cancellation: { type: cancellationSchema, default: null },
     notes: { type: String, default: null },
-    /** Lien avec la détection bancaire. */
     detection: {
       type: new Schema(
         {

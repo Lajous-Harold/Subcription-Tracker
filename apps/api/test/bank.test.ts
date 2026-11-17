@@ -4,7 +4,7 @@ import { describe, expect, it } from '@jest/globals';
 import { purgeExpiredData } from '../src/jobs/scheduler';
 import { BankLinkModel, PowensCleanupModel, WebhookEventModel } from '../src/modules/bank/models';
 import { waitForSyncs } from '../src/modules/bank/sync';
-import { signWebhookForTests } from '../src/modules/powens/client';
+import { computeWebhookSignature } from '../src/modules/powens/client';
 import { PaymentModel, SubscriptionModel } from '../src/modules/subscriptions/models';
 import { TransactionModel } from '../src/modules/transactions/model';
 import { registerUser, testApp, type TestApp } from './helpers';
@@ -14,16 +14,16 @@ const app = testApp();
 
 type Auth = Awaited<ReturnType<typeof registerUser>>;
 
-function monthly(day: number, months: number, from = new Date()) {
+function pastMonthlyDates(day: number, months: number, from = new Date()) {
   const dates: string[] = [];
-  for (let i = months; i >= 1; i -= 1) {
-    const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() - i, day));
-    dates.push(d.toISOString().slice(0, 10));
+  for (let monthsAgo = months; monthsAgo >= 1; monthsAgo -= 1) {
+    const date = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() - monthsAgo, day));
+    dates.push(date.toISOString().slice(0, 10));
   }
   return dates;
 }
 
-const spotifyDates = monthly(5, 5);
+const spotifyDates = pastMonthlyDates(5, 5);
 const POWENS_TRANSACTIONS = [
   ...spotifyDates.map((date, index) => ({
     id: 1000 + index,
@@ -46,7 +46,7 @@ const POWENS_TRANSACTIONS = [
     type: 'transfer',
     last_update: '2026-01-01 10:00:00',
   },
-  // compte non analysé : ignoré
+  // compte non partagé avec l'application : ignoré
   {
     id: 3000,
     id_account: 99,
@@ -366,7 +366,7 @@ describe('webhooks Powens', () => {
   function signed(payload: object, options: { date?: string; secret?: string } = {}) {
     const body = JSON.stringify(payload);
     const date = options.date ?? new Date().toISOString();
-    const signature = signWebhookForTests({
+    const signature = computeWebhookSignature({
       secret: options.secret ?? 'webhook-secret',
       method: 'POST',
       endpoint: path,
@@ -413,7 +413,7 @@ describe('webhooks Powens', () => {
       .set('BI-Signature-Date', date)
       .set(
         'BI-Signature',
-        signWebhookForTests({ secret: 'webhook-secret', method: 'POST', endpoint, date, payload: body }),
+        computeWebhookSignature({ secret: 'webhook-secret', method: 'POST', endpoint, date, payload: body }),
       )
       .send(body)
       .expect(200);

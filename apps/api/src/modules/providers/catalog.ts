@@ -8,7 +8,7 @@
  *   `null` = non vérifiée (page inaccessible ou trop générique) : l'application l'indique à l'utilisateur.
  *   Vérification du 16/11/2026 : spotify, netflix, apple, youtube-premium, adobe, chatgpt, claude, google-one, deezer.
  */
-export interface CatalogEntry {
+interface CatalogEntry {
   slug: string;
   name: string;
   category: string;

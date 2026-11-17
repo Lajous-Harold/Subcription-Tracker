@@ -14,8 +14,11 @@ export interface PaymentStats {
   lastPaymentDate: string | null;
 }
 
+const MAX_ROLL_FORWARD_MONTHS = 600;
+const PAYMENT_GRACE_DAYS = 7;
+
 /** Échéance : déclarée si fixée et à venir, sinon estimée (jour de prélèvement ou dernier paiement). */
-export function computeNextDueDate(
+function computeNextDueDate(
   doc: Pick<SubscriptionDoc, 'status' | 'billingDay' | 'nextDueDateDeclared' | 'updatedAt'>,
   stats: PaymentStats,
   today = todayIso(),
@@ -24,7 +27,9 @@ export function computeNextDueDate(
   const updatedAt = doc.updatedAt.toISOString();
   const rollForward = (start: string, day: number) => {
     let value = start;
-    for (let guard = 0; value < today && guard < 600; guard += 1) value = addMonthsClamped(value, 1, day);
+    for (let months = 0; value < today && months < MAX_ROLL_FORWARD_MONTHS; months += 1) {
+      value = addMonthsClamped(value, 1, day);
+    }
     return value;
   };
 
@@ -49,8 +54,8 @@ export function computeNextDueDate(
   return null;
 }
 
-/** Signal sans effet sur le statut : aucun paiement bancaire observé 7 jours après l'échéance attendue. */
-export function computePaymentMissing(
+/** Simple signal, sans effet sur le statut : aucun paiement bancaire observé après le délai de grâce. */
+function computePaymentMissing(
   doc: Pick<SubscriptionDoc, 'status' | 'billingDay' | 'detection'>,
   stats: PaymentStats,
   today = todayIso(),
@@ -58,7 +63,7 @@ export function computePaymentMissing(
   if (doc.status !== 'active' || !doc.detection || !stats.lastPaymentDate) return false;
   const day = doc.billingDay?.value ?? Number(stats.lastPaymentDate.slice(8, 10));
   const expected = addMonthsClamped(stats.lastPaymentDate, 1, day);
-  const graceEnd = new Date(`${expected}T00:00:00Z`).getTime() + 7 * 86_400_000;
+  const graceEnd = new Date(`${expected}T00:00:00Z`).getTime() + PAYMENT_GRACE_DAYS * 86_400_000;
   return new Date(`${today}T00:00:00Z`).getTime() > graceEnd;
 }
 

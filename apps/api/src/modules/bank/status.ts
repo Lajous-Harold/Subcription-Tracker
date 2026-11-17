@@ -1,4 +1,5 @@
 import type { BankLinkStatus } from '@subtracker/contracts';
+import type { PowensConnection } from '../powens/client';
 
 const ACTION_REQUIRED = new Set([
   'SCARequired',
@@ -12,10 +13,7 @@ const ACTION_REQUIRED = new Set([
 ]);
 const TEMPORARY = new Set(['validating', 'rateLimiting', 'websiteUnavailable', 'bug']);
 
-/**
- * Traduit l'état Powens d'une connexion en statut affiché.
- * Powens annonce que de nouveaux états peuvent apparaître : tout état inconnu tombe sur `error`.
- */
+/** Powens annonce que de nouveaux états peuvent apparaître : tout état inconnu tombe sur `error`. */
 export function mapConnectionState(state: string | null | undefined): BankLinkStatus {
   if (state === null || state === undefined || state === '') return 'connected';
   if (ACTION_REQUIRED.has(state)) return 'action_required';
@@ -24,7 +22,23 @@ export function mapConnectionState(state: string | null | undefined): BankLinkSt
   return 'error';
 }
 
-export const CONSENT_WARNING_DAYS = 14;
+/** Une connexion sans `last_update` ni `state` n'a jamais été synchronisée : elle reste `pending`. */
+export function linkFieldsFromConnection(
+  connection: PowensConnection,
+  previousConnectorName: string | null | undefined,
+) {
+  const status: BankLinkStatus =
+    connection.last_update || connection.state ? mapConnectionState(connection.state) : 'pending';
+  return {
+    connectorName: connection.connector?.name ?? previousConnectorName ?? null,
+    status,
+    powensState: connection.state ?? null,
+    powensMessage: connection.error_message ?? null,
+    consentExpiresAt: connection.expire ? new Date(connection.expire) : null,
+  };
+}
+
+const CONSENT_WARNING_DAYS = 14;
 
 export function isConsentExpiringSoon(expiresAt: Date | null | undefined, now = new Date()): boolean {
   if (!expiresAt) return false;
