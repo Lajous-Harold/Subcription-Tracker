@@ -1,6 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import type { Payment } from '@subtracker/contracts';
-import { describePaymentHistory, latestPayments, paymentBars, splitInstructionSteps } from '../presentation';
+import {
+  cancellationChoiceOf,
+  cancellationStatusFor,
+  describePaymentHistory,
+  latestPayments,
+  paymentBars,
+  splitInstructionSteps,
+} from '../presentation';
 
 function payment(date: string, cents: number): Payment {
   return {
@@ -67,5 +74,30 @@ describe('historique des paiements', () => {
     expect(normalizeSpaces(describePaymentHistory(payments))).toBe(
       '3 derniers paiements, de 11,99 € à 13,49 € ; le plus récent : 12,99 € le 3 novembre 2026',
     );
+  });
+});
+
+describe('choix rapide de résiliation', () => {
+  it('lit « Actif » sans démarche ou après abandon, et aucun choix pour une démarche seulement commencée', () => {
+    expect(cancellationChoiceOf(null)).toBe('active');
+    expect(cancellationChoiceOf({ status: 'abandoned' })).toBe('active');
+    expect(cancellationChoiceOf({ status: 'started' })).toBeNull();
+    expect(cancellationChoiceOf({ status: 'requested' })).toBe('requested');
+    expect(cancellationChoiceOf({ status: 'confirmed' })).toBe('confirmed');
+  });
+
+  it("n'envoie rien quand le choix ne change pas", () => {
+    expect(cancellationStatusFor('active', null)).toBeNull();
+    expect(cancellationStatusFor('requested', { status: 'requested' })).toBeNull();
+  });
+
+  it('abandonne la démarche en revenant à « Actif », sans l’effacer', () => {
+    expect(cancellationStatusFor('active', { status: 'started' })).toBe('abandoned');
+    expect(cancellationStatusFor('active', { status: 'confirmed' })).toBe('abandoned');
+  });
+
+  it('enregistre le statut choisi', () => {
+    expect(cancellationStatusFor('requested', null)).toBe('requested');
+    expect(cancellationStatusFor('confirmed', { status: 'started' })).toBe('confirmed');
   });
 });

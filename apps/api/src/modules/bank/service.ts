@@ -48,6 +48,7 @@ export function toBankLinkDto(link: BankLinkDoc, now = new Date()): BankLink {
 function toBankAccountDto(account: BankAccountDoc, transactionCount: number): BankAccount {
   return {
     id: account._id.toString(),
+    source: account.source,
     name: account.name,
     type: account.type ?? null,
     numberLast4: account.numberLast4 ?? null,

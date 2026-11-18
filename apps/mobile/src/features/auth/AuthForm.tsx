@@ -8,10 +8,11 @@ import { controlStyles, ErrorText, Muted, Panel } from '@/components/ui';
 import { Wordmark } from '@/components/Wordmark';
 import { useAuth } from '@/lib/auth';
 import { ApiError, errorMessage } from '@/lib/http';
-import { fontFamilies } from '@/lib/theme';
+import { fontFamilies, useBrand } from '@/lib/theme';
 
 export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const { signIn, signUp } = useAuth();
+  const { colors } = useBrand();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,7 +54,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           {isSignUp ? 'Créer un compte' : 'Se connecter'}
         </Text>
         <TextInput
-          label="Email"
+          label="E-mail"
           mode="outlined"
           value={email}
           onChangeText={setEmail}
@@ -91,8 +92,13 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           {isSignUp ? 'Créer mon compte' : 'Se connecter'}
         </AppButton>
         <View style={styles.switch}>
+          <Text variant="bodyMedium" style={{ color: colors.inkMuted }}>
+            {isSignUp ? 'Déjà inscrit ?' : 'Pas encore de compte ?'}
+          </Text>
           <Link href={isSignUp ? '/sign-in' : '/sign-up'} replace asChild>
-            <AppButton variant="ghost">{isSignUp ? 'J’ai déjà un compte' : 'Créer un compte'}</AppButton>
+            <AppButton variant="ghost" style={styles.switchButton}>
+              {isSignUp ? 'Se connecter' : 'Créer un compte'}
+            </AppButton>
           </Link>
         </View>
       </Panel>
@@ -106,5 +112,6 @@ const styles = StyleSheet.create({
   tagline: { fontFamily: fontFamilies.displayMedium },
   card: { width: '100%', maxWidth: 420, padding: 24, gap: 4 },
   submit: { marginTop: 12 },
-  switch: { alignItems: 'center', marginTop: 4 },
+  switch: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  switchButton: { paddingHorizontal: 8 },
 });

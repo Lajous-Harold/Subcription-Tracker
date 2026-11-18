@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { initialOf } from '@/lib/format';
 import { radii, useBrand } from '@/lib/theme';
 
-export const ACCOUNT_AVATAR_BUTTON_SIZE = 44;
+const ACCOUNT_AVATAR_BUTTON_SIZE = 44;
 
 /** Décoratif : l'adresse e-mail est toujours lue à côté, ou portée par le bouton qui l'entoure. */
 export function AccountAvatar({ email, size = 40 }: { email: string | null | undefined; size?: number }) {

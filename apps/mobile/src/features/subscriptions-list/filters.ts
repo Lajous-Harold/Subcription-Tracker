@@ -1,5 +1,5 @@
 import type { Subscription, SubscriptionStatus } from '@subtracker/contracts';
-import { CANCELLATION_STATUS_LABELS, formatShortDate } from '@/lib/format';
+import { CANCELLATION_STATUS_LABELS, formatMediumDate, formatShortDate } from '@/lib/format';
 
 export type StatusFilter = 'tracked' | 'cancelled' | 'archived';
 
@@ -47,15 +47,23 @@ export interface CancellationSummary {
 export function summarizeCancellation(sub: Subscription): CancellationSummary | null {
   const { cancellation } = sub;
   if (!cancellation || cancellation.status === 'abandoned') return null;
-  const effective = cancellation.effectiveDate ? ` · effective le ${formatShortDate(cancellation.effectiveDate)}` : '';
+  const effective = cancellation.effectiveDate ? ` · effective le ${formatMediumDate(cancellation.effectiveDate)}` : '';
   return {
     text: `${CANCELLATION_STATUS_LABELS[cancellation.status]}${effective}`,
     needsFollowUp: cancellation.status !== 'confirmed',
   };
 }
 
+/** Une échéance est proche : le jour et le mois suffisent, liés pour ne jamais se séparer en fin de ligne. */
+export function formatDueDay(value: string): string {
+  return formatShortDate(value).replace(/\s/g, ' ');
+}
+
+export function isNextDueDateEstimated(sub: Subscription): boolean {
+  return sub.nextDueDate?.origin === 'estimated';
+}
+
 export function formatNextDueDate(sub: Subscription): string {
   if (!sub.nextDueDate) return '—';
-  const estimated = sub.nextDueDate.origin === 'estimated' ? ' (estimée)' : '';
-  return `${formatShortDate(sub.nextDueDate.value)}${estimated}`;
+  return `${formatDueDay(sub.nextDueDate.value)}${isNextDueDateEstimated(sub) ? ' (estimée)' : ''}`;
 }

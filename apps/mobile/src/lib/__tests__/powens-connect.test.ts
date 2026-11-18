@@ -1,7 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { BankLink } from '@subtracker/contracts';
-import { completeConnectCallback } from '../powens-connect';
+import { completeConnectCallback, PowensConnectError } from '../powens-connect';
 import { api } from '../api';
+import { ApiError } from '../http';
 
 jest.mock('../api', () => ({
   api: { completeConnectSession: jest.fn(() => Promise.resolve({ id: 'link', status: 'pending' })) },
@@ -46,7 +47,35 @@ describe('completeConnectCallback', () => {
     await expect(completeConnectCallback(params)).resolves.toEqual(connectedLink);
   });
 
-  it('refuse un retour sans state', async () => {
-    await expect(completeConnectCallback({ connection_id: '7' })).rejects.toThrow('state manquant');
+  it('refuse un retour sans state avec un message pour l’utilisateur, la cause restant technique', async () => {
+    const rejection = completeConnectCallback({ connection_id: '7' });
+
+    await expect(rejection).rejects.toThrow('La connexion à votre banque n’a pas abouti');
+    await expect(rejection).rejects.toMatchObject({ reason: 'MISSING_STATE' });
+  });
+
+  it('reformule un refus de l’API sans afficher l’explication technique de Powens', async () => {
+    const refusal = new ApiError(400, 'WEBVIEW_TOS_DECLINED', 'Conditions d’utilisation refusées', 'tos not accepted');
+    jest.mocked(api.completeConnectSession).mockRejectedValueOnce(refusal);
+
+    const rejection = completeConnectCallback({ state: 'state-cgu-refusees-1122334455', error: 'tos_declined' });
+
+    await expect(rejection).rejects.toBeInstanceOf(PowensConnectError);
+    await expect(rejection).rejects.toMatchObject({
+      message: expect.stringContaining('conditions de Powens'),
+      reason: 'WEBVIEW_TOS_DECLINED',
+      cause: refusal,
+    });
+  });
+
+  it('garde un message générique pour un code de refus inconnu', async () => {
+    jest
+      .mocked(api.completeConnectSession)
+      .mockRejectedValueOnce(new ApiError(400, 'MISSING_CONNECTION', 'Identifiant de connexion manquant'));
+
+    await expect(completeConnectCallback({ state: 'state-sans-connexion-5566778899' })).rejects.toMatchObject({
+      message: 'La connexion à votre banque n’a pas abouti. Relancez-la depuis l’écran Banque.',
+      reason: 'MISSING_CONNECTION',
+    });
   });
 });

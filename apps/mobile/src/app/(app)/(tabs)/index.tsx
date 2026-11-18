@@ -1,20 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/AppButton';
 import { EmptyState, ErrorState, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { DashboardNotices } from '@/features/dashboard/DashboardNotices';
 import { DashboardIndicators, MonthHero, ReviewPrompt } from '@/features/dashboard/SummaryPanels';
-import { describeLastBankRead, SyncHint } from '@/features/dashboard/SyncHint';
+import { SyncHint } from '@/features/dashboard/SyncHint';
 import { UpcomingPayments } from '@/features/dashboard/UpcomingPayments';
-import { useBankPullToSync, type BankPullToSync } from '@/features/dashboard/useBankPullToSync';
+import { useBankPullToSync } from '@/features/dashboard/useBankPullToSync';
+import { ADD_SUBSCRIPTION_LABEL, openNewSubscription } from '@/features/subscriptions-list/add-subscription';
+import { SubscriptionsTablePanel } from '@/features/subscriptions-list/SubscriptionsTablePanel';
 import { api } from '@/lib/api';
 import { useLayoutMode } from '@/lib/layout';
 import { queryKeys } from '@/lib/query';
-
-const ADD_SUBSCRIPTION_LABEL = 'Ajouter un abonnement';
-
-const openNewSubscription = () => router.push('/subscriptions/new');
+import { useBrand } from '@/lib/theme';
 
 function NoSubscriptions({ showAddButton }: { showAddButton: boolean }) {
   return (
@@ -36,27 +35,27 @@ function NoSubscriptions({ showAddButton }: { showAddButton: boolean }) {
   );
 }
 
-function WideToolbar({ bankSync }: { bankSync: BankPullToSync }) {
-  const { linkedBank, syncing, refreshing } = bankSync;
-  const syncBusy = refreshing || syncing;
+function TrackedSubscriptionsPanel() {
+  const { colors, fonts } = useBrand();
+  const { data, error, isLoading, refetch } = useQuery({
+    queryKey: queryKeys.subscriptions,
+    queryFn: () => api.subscriptions(),
+  });
+  if (isLoading) return <Loading />;
+  if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
   return (
-    <View style={styles.toolbar}>
-      {linkedBank ? (
-        <Muted style={styles.toolbarStatus}>
-          {syncing ? 'Synchronisation en cours…' : `Banque ${describeLastBankRead(linkedBank)}`}
-        </Muted>
-      ) : null}
-      <View style={styles.toolbarActions}>
-        {linkedBank ? (
-          <AppButton variant="secondary" icon="sync" onPress={() => void bankSync.refresh()} loading={syncBusy}>
-            Synchroniser la banque
-          </AppButton>
-        ) : null}
-        <AppButton icon="plus" onPress={openNewSubscription}>
-          {ADD_SUBSCRIPTION_LABEL}
-        </AppButton>
-      </View>
-    </View>
+    <SubscriptionsTablePanel
+      subscriptions={data}
+      statusFilter="tracked"
+      heading={
+        <Text
+          accessibilityRole="header"
+          style={[styles.panelTitle, { fontFamily: fonts.displayBold, color: colors.ink }]}
+        >
+          Abonnements
+        </Text>
+      }
+    />
   );
 }
 
@@ -66,7 +65,7 @@ export default function DashboardScreen() {
     queryKey: queryKeys.dashboard,
     queryFn: api.dashboard,
   });
-  const bankSync = useBankPullToSync(refetch);
+  const bankSync = useBankPullToSync();
 
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
@@ -78,36 +77,38 @@ export default function DashboardScreen() {
 
   return (
     <Screen refreshing={bankSync.refreshing} onRefresh={() => void bankSync.refresh()}>
-      {isWide ? <WideToolbar bankSync={bankSync} /> : null}
-      {!isWide && linkedBank ? (
-        <SyncHint bank={linkedBank} syncing={bankSync.syncing} onSync={() => void bankSync.refresh()} />
-      ) : null}
+      <View style={isWide ? styles.wideSections : styles.compactSections}>
+        {!isWide && linkedBank ? (
+          <SyncHint bank={linkedBank} syncing={bankSync.syncing} onSync={() => void bankSync.refresh()} />
+        ) : null}
 
-      {hasSubscriptions && isWide ? <DashboardIndicators summary={data} /> : null}
-      {hasSubscriptions && !isWide ? <MonthHero summary={data} /> : null}
-      {hasPendingDetections && !(hasSubscriptions && isWide) ? (
-        <ReviewPrompt pendingCount={data.pendingCandidates} />
-      ) : null}
+        {hasSubscriptions && isWide ? <DashboardIndicators summary={data} /> : null}
+        {hasSubscriptions && !isWide ? <MonthHero summary={data} /> : null}
+        {hasPendingDetections && !(hasSubscriptions && isWide) ? (
+          <ReviewPrompt pendingCount={data.pendingCandidates} />
+        ) : null}
 
-      <DashboardNotices summary={data} />
+        <DashboardNotices summary={data} />
 
-      {hasSubscriptions ? (
-        <UpcomingPayments upcoming={data.upcoming} layoutMode={layoutMode} />
-      ) : (
-        <NoSubscriptions showAddButton={!isWide} />
-      )}
+        {!hasSubscriptions ? <NoSubscriptions showAddButton={!isWide} /> : null}
+        {hasSubscriptions && isWide ? <TrackedSubscriptionsPanel /> : null}
+        {hasSubscriptions && !isWide ? <UpcomingPayments upcoming={data.upcoming} /> : null}
 
-      <Muted style={styles.disclaimer}>
-        Les montants observés proviennent de vos opérations bancaires ; une opération ne prouve pas qu’un abonnement est
-        actif.
-      </Muted>
+        {isWide ? null : (
+          <Muted style={styles.disclaimer}>
+            Les montants observés proviennent de vos opérations bancaires ; une opération ne prouve pas qu’un abonnement
+            est actif.
+          </Muted>
+        )}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 12 },
-  toolbarStatus: { flexGrow: 1, fontSize: 14 },
-  toolbarActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  /** La maquette du tableau de bord espace davantage ses blocs que l'accueil mobile. */
+  wideSections: { gap: 24 },
+  compactSections: { gap: 16 },
+  panelTitle: { fontSize: 20, lineHeight: 26 },
   disclaimer: { textAlign: 'center', marginTop: 8 },
 });

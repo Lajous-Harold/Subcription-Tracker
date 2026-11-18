@@ -47,7 +47,7 @@ export function ProviderPicker({
         </View>
       ) : (
         <TextInput
-          label="Fournisseur (nom libre, facultatif)"
+          label="Fournisseur (facultatif)"
           mode="outlined"
           outlineStyle={controlStyles.fieldOutline}
           value={value.customName}

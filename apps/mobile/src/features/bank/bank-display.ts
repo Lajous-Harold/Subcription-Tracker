@@ -59,26 +59,36 @@ export function accountTypeLabel(type: string | null): string | null {
   return ACCOUNT_TYPE_LABELS[type] ?? type;
 }
 
+function accountReadState(account: Pick<BankAccount, 'sharedWithApp' | 'analyzed' | 'transactionCount'>): string {
+  if (!account.sharedWithApp) return 'non partagé';
+  if (!account.analyzed) return 'ignoré';
+  return formatOperationCount(account.transactionCount);
+}
+
 const localeLowerCase = (text: string) => text.toLocaleLowerCase('fr-FR');
 
 /**
  * Sous-titre d'une ligne de compte, sur le modèle « ••4821 · 412 opérations ».
  * Le type n'apparaît que s'il apprend quelque chose (« Livret A » → épargne, pas « Compte courant » → compte courant).
- * Un compte non partagé n'a aucune opération importée : on dit pourquoi plutôt que d'afficher « 0 opération ».
+ * Un compte non partagé n'a aucune opération importée, et un compte décoché n'est pas lu :
+ * on dit pourquoi plutôt que d'afficher un nombre d'opérations qui n'entre pas dans la détection.
  */
 export function accountDescription(
-  account: Pick<BankAccount, 'name' | 'type' | 'numberLast4' | 'sharedWithApp' | 'transactionCount'>,
+  account: Pick<BankAccount, 'name' | 'type' | 'numberLast4' | 'sharedWithApp' | 'analyzed' | 'transactionCount'>,
 ): string {
   const typeLabel = accountTypeLabel(account.type);
   const typeIsInformative = typeLabel !== null && !localeLowerCase(account.name).includes(localeLowerCase(typeLabel));
   return [
     account.numberLast4 ? formatMaskedAccountNumber(account.numberLast4) : null,
     typeIsInformative ? typeLabel : null,
-    account.sharedWithApp ? formatOperationCount(account.transactionCount) : 'non partagé',
+    accountReadState(account),
   ]
     .filter(Boolean)
     .join(' · ');
 }
+
+/** Compte créé par `POST /demo/data` : ses opérations viennent des données de démonstration, pas de Powens. */
+export const isDemoAccount = (account: Pick<BankAccount, 'source'>) => account.source === 'fixture';
 
 export interface BankLinkSummary {
   title: string;

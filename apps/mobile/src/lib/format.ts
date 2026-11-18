@@ -5,7 +5,6 @@ import type {
   CancellationMethod,
   CancellationStatus,
   Origin,
-  Subscription,
 } from '@subtracker/contracts';
 
 const CIVIL_DATE_LENGTH = 'YYYY-MM-DD'.length;
@@ -52,10 +51,6 @@ export function formatDateTime(value: string | null | undefined): string {
 
 export function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',');
-}
-
-export function formatProviderName(subscription: Pick<Subscription, 'provider' | 'customProviderName'>): string {
-  return subscription.provider?.name ?? subscription.customProviderName ?? 'Fournisseur non renseigné';
 }
 
 /** En français, zéro s'accorde au singulier : « 0 opération ». */

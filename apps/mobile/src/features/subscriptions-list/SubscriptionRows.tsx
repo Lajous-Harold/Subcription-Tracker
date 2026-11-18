@@ -6,7 +6,13 @@ import { Muted, OriginChip, ServiceMonogram } from '@/components/ui';
 import { formatMoney, ORIGIN_LABELS } from '@/lib/format';
 import { tabularNums, useBrand } from '@/lib/theme';
 import { DataTable, type TableColumn } from '@/components/DataTable';
-import { formatNextDueDate, providerHint, summarizeCancellation } from './filters';
+import {
+  formatDueDay,
+  formatNextDueDate,
+  isNextDueDateEstimated,
+  providerHint,
+  summarizeCancellation,
+} from './filters';
 
 const PAYMENT_MISSING_TEXT = 'Paiement non observé à l’échéance';
 
@@ -29,13 +35,11 @@ function describeForScreenReader(sub: Subscription): string {
     .join(', ');
 }
 
-function MonthlyAmount({ sub }: { sub: Subscription }) {
+/** Les montants suivent le texte courant (Inter) : gras en liste, demi-gras dans le tableau, comme les maquettes. */
+function MonthlyAmount({ sub, inTable = false }: { sub: Subscription; inTable?: boolean }) {
   const { colors, fonts } = useBrand();
-  return (
-    <Text style={[tabularNums, styles.amount, { fontFamily: fonts.displayBold, color: colors.ink }]}>
-      {formatMonthlyAmount(sub)}
-    </Text>
-  );
+  const fontStyle = inTable ? { fontFamily: fonts.semiBold, fontSize: 14 } : { fontFamily: fonts.bold, fontSize: 15 };
+  return <Text style={[tabularNums, fontStyle, { color: colors.ink }]}>{formatMonthlyAmount(sub)}</Text>;
 }
 
 function SignalText({ children }: { children: string }) {
@@ -47,20 +51,32 @@ function SignalText({ children }: { children: string }) {
   );
 }
 
-function CancellationText({ sub, emptyText }: { sub: Subscription; emptyText?: string }) {
+/** Une démarche en cours se suit en orange ; sans démarche, un abonnement actif se dit simplement « Active ». */
+function CancellationCell({ sub }: { sub: Subscription }) {
+  const { colors, fonts } = useBrand();
   const summary = summarizeCancellation(sub);
-  if (!summary) return emptyText ? <Muted>{emptyText}</Muted> : null;
-  return summary.needsFollowUp ? <SignalText>{summary.text}</SignalText> : <Muted>{summary.text}</Muted>;
+  if (!summary) return <Muted style={styles.cellText}>{sub.status === 'active' ? 'Active' : '—'}</Muted>;
+  return summary.needsFollowUp ? (
+    <Text style={[styles.cellText, { color: colors.signalText, fontFamily: fonts.semiBold }]}>{summary.text}</Text>
+  ) : (
+    <Muted style={styles.cellText}>{summary.text}</Muted>
+  );
+}
+
+function describeCompactDetails(sub: Subscription): string {
+  const dueDate = sub.nextDueDate
+    ? `Échéance ${formatDueDay(sub.nextDueDate.value)}${isNextDueDateEstimated(sub) ? ' (estimée)' : ''}`
+    : null;
+  return [providerHint(sub), dueDate].filter(Boolean).join(' · ');
 }
 
 export function SubscriptionList({ subscriptions }: { subscriptions: Subscription[] }) {
-  const { colors } = useBrand();
+  const { colors, fonts } = useBrand();
   return (
     <View>
       {subscriptions.map((sub, index) => {
-        const details = [providerHint(sub), sub.nextDueDate ? `Prochaine échéance ${formatNextDueDate(sub)}` : null]
-          .filter(Boolean)
-          .join(' · ');
+        const details = describeCompactDetails(sub);
+        const cancellation = summarizeCancellation(sub);
         return (
           <Pressable
             key={sub.id}
@@ -73,13 +89,19 @@ export function SubscriptionList({ subscriptions }: { subscriptions: Subscriptio
               pressed && styles.pressed,
             ]}
           >
-            <ServiceMonogram name={sub.label} size={40} />
+            <ServiceMonogram name={sub.label} />
             <View style={styles.listBody}>
-              <Text variant="titleMedium" numberOfLines={1}>
+              <Text numberOfLines={2} style={[styles.listLabel, { fontFamily: fonts.semiBold, color: colors.ink }]}>
                 {sub.label}
               </Text>
               {details ? <Muted>{details}</Muted> : null}
-              <CancellationText sub={sub} />
+              {cancellation ? (
+                cancellation.needsFollowUp ? (
+                  <SignalText>{cancellation.text}</SignalText>
+                ) : (
+                  <Muted>{cancellation.text}</Muted>
+                )
+              ) : null}
               {sub.paymentMissing ? <SignalText>{PAYMENT_MISSING_TEXT}</SignalText> : null}
             </View>
             <View style={styles.listAmount}>
@@ -96,18 +118,15 @@ export function SubscriptionList({ subscriptions }: { subscriptions: Subscriptio
 const TABLE_COLUMNS: TableColumn<Subscription>[] = [
   {
     title: 'Service',
-    flex: 3,
+    flex: 2.4,
     render: (sub) => {
       const hint = providerHint(sub);
       return (
         <View style={styles.serviceCell}>
-          <ServiceMonogram name={sub.label} size={32} />
-          <View style={styles.listBody}>
-            <Text variant="titleSmall" numberOfLines={1}>
-              {sub.label}
-            </Text>
-            {hint ? <Muted>{hint}</Muted> : null}
-          </View>
+          <Text variant="titleSmall" numberOfLines={1}>
+            {sub.label}
+          </Text>
+          {hint ? <Muted>{hint}</Muted> : null}
         </View>
       );
     },
@@ -119,18 +138,15 @@ const TABLE_COLUMNS: TableColumn<Subscription>[] = [
     render: (sub) => (
       <View>
         <Text variant="bodyMedium" style={tabularNums}>
-          {formatNextDueDate(sub)}
+          {sub.nextDueDate ? formatDueDay(sub.nextDueDate.value) : '—'}
+          {isNextDueDateEstimated(sub) ? <Muted style={styles.cellText}> (estimée)</Muted> : null}
         </Text>
         {sub.paymentMissing ? <SignalText>{PAYMENT_MISSING_TEXT}</SignalText> : null}
       </View>
     ),
   },
-  {
-    title: 'Résiliation',
-    flex: 2.4,
-    render: (sub) => <CancellationText sub={sub} emptyText="—" />,
-  },
-  { title: 'Par mois', flex: 1.3, align: 'right', render: (sub) => <MonthlyAmount sub={sub} /> },
+  { title: 'Résiliation', flex: 2.8, render: (sub) => <CancellationCell sub={sub} /> },
+  { title: 'Par mois', flex: 1.3, align: 'right', render: (sub) => <MonthlyAmount sub={sub} inTable /> },
 ];
 
 export function SubscriptionTable({ subscriptions }: { subscriptions: Subscription[] }) {
@@ -141,7 +157,7 @@ export function SubscriptionTable({ subscriptions }: { subscriptions: Subscripti
       rowKey={(sub) => sub.id}
       rowLabel={describeForScreenReader}
       onPressRow={openSubscription}
-      minWidth={720}
+      minWidth={640}
     />
   );
 }
@@ -149,8 +165,9 @@ export function SubscriptionTable({ subscriptions }: { subscriptions: Subscripti
 const styles = StyleSheet.create({
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, minHeight: 64 },
   listBody: { flex: 1, gap: 2 },
+  listLabel: { fontSize: 15, lineHeight: 20 },
   listAmount: { alignItems: 'flex-end', gap: 6 },
-  serviceCell: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch' },
-  amount: { fontSize: 16 },
+  serviceCell: { alignSelf: 'stretch', gap: 2 },
+  cellText: { fontSize: 14, lineHeight: 20 },
   pressed: { opacity: 0.6 },
 });

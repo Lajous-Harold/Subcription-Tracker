@@ -94,52 +94,66 @@ function HomeLink() {
   );
 }
 
-/** Partage la requête de l'écran Banque : rien n'est rechargé si le lien bancaire est déjà en cache. */
+const lowerFirst = (text: string) => text.charAt(0).toLocaleLowerCase('fr-FR') + text.slice(1);
+
+/**
+ * L'encart entier est un seul lien vers l'écran Banque, sans lien imbriqué, nommé d'après l'état qu'il affiche.
+ * Partage la requête de l'écran Banque : rien n'est rechargé si le lien bancaire est déjà en cache.
+ */
 function BankSummary() {
   const brand = useBrand();
   const { bankLinkQuery, linkedBank } = useBankLink();
   const now = useMinuteClock();
-  const [linkHovered, setLinkHovered] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
   if (!bankLinkQuery.isSuccess) return null;
 
   const summary = linkedBank ? bankLinkSummary(linkedBank, now) : null;
+  const accessibleName = summary
+    ? `${summary.title}, ${lowerFirst(summary.detail)}, ouvrir la banque`
+    : 'Aucune banque connectée, connecter ma banque';
   const titleStyle = [styles.bankText, { fontFamily: brand.fonts.semiBold }];
-  const detailStyle = [styles.bankText, { fontFamily: brand.fonts.regular, color: brand.colors.inkMuted }];
   return (
-    <View style={[styles.bank, { backgroundColor: brand.colors.background, borderRadius: brand.radii.control }]}>
-      {summary ? (
-        <>
-          <Text style={[titleStyle, { color: summary.needsAttention ? brand.colors.signalText : brand.colors.ink }]}>
-            {summary.title}
-          </Text>
-          <Text style={detailStyle}>{summary.detail}</Text>
-        </>
-      ) : (
-        <>
-          <Text style={[titleStyle, { color: brand.colors.ink }]}>Aucune banque connectée</Text>
-          <Link href="/bank" asChild style={styles.bankLink}>
-            <Pressable
-              accessibilityRole="link"
-              onHoverIn={() => setLinkHovered(true)}
-              onHoverOut={() => setLinkHovered(false)}
+    <Link
+      href="/bank"
+      asChild
+      style={[
+        styles.bank,
+        {
+          borderRadius: brand.radii.control,
+          backgroundColor: hovered || pressed ? brand.colors.tile : brand.colors.background,
+        },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={accessibleName}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+      >
+        {summary ? (
+          <>
+            <Text style={[titleStyle, { color: summary.needsAttention ? brand.colors.signalText : brand.colors.ink }]}>
+              {summary.title}
+            </Text>
+            <Text style={[styles.bankText, { fontFamily: brand.fonts.regular, color: brand.colors.inkMuted }]}>
+              {summary.detail}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={[titleStyle, { color: brand.colors.ink }]}>Aucune banque connectée</Text>
+            <Text
+              style={[titleStyle, { color: brand.colors.action, textDecorationLine: hovered ? 'underline' : 'none' }]}
             >
-              <Text
-                style={[
-                  styles.bankText,
-                  {
-                    fontFamily: brand.fonts.semiBold,
-                    color: brand.colors.action,
-                    textDecorationLine: linkHovered ? 'underline' : 'none',
-                  },
-                ]}
-              >
-                Connecter ma banque
-              </Text>
-            </Pressable>
-          </Link>
-        </>
-      )}
-    </View>
+              Connecter ma banque
+            </Text>
+          </>
+        )}
+      </Pressable>
+    </Link>
   );
 }
 
@@ -234,5 +248,4 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12 },
   bank: { marginTop: 'auto', padding: 14 },
   bankText: { fontSize: 13, lineHeight: 20 },
-  bankLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
 });

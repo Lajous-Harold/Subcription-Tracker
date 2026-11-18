@@ -1,10 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native';
 import type { DashboardSummary } from '@subtracker/contracts';
-import { Muted, OriginChip, Panel } from '@/components/ui';
+import { EstimateTag, OriginChip, Panel } from '@/components/ui';
 import { formatMoney } from '@/lib/format';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
 
@@ -14,29 +13,53 @@ function describeDetections(count: number): string {
   return count === 1 ? '1 abonnement détecté' : `${count} abonnements détectés`;
 }
 
+/** Le nombre est déjà dans la tuile orange : le titre ne le répète pas. */
+function detectionsTitle(count: number): string {
+  return count === 1 ? 'Abonnement détecté' : 'Abonnements détectés';
+}
+
+/** Une provenance sans montant n'apprend rien : elle est omise plutôt qu'affichée à 0,00 €. */
+function describeMonthlySplit(summary: DashboardSummary): string | null {
+  const { observedCents, declaredCents } = summary.monthly;
+  const parts = [
+    observedCents > 0 ? `${formatMoney(observedCents, summary.currency)} observés` : null,
+    declaredCents > 0 ? `${formatMoney(declaredCents, summary.currency)} déclarés` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function describeExcludedCurrencies(summary: DashboardSummary): string | null {
   if (summary.excludedOtherCurrencies.length === 0) return null;
   const parts = summary.excludedOtherCurrencies.map((excluded) => `${excluded.count} en ${excluded.currency}`);
   return `Hors total : ${parts.join(', ')}.`;
 }
 
-function BigAmount({ children, size, color }: { children: string; size: number; color: string }) {
+const BIG_AMOUNT_STYLES = {
+  hero: { fontSize: 48, lineHeight: 50, letterSpacing: -2 },
+  tile: { fontSize: 36, lineHeight: 42, letterSpacing: -1 },
+} satisfies Record<string, TextStyle>;
+
+function BigAmount({
+  children,
+  scale,
+  color,
+}: {
+  children: string;
+  scale: keyof typeof BIG_AMOUNT_STYLES;
+  color: string;
+}) {
   const { fonts } = useBrand();
   return (
-    <Text
-      style={[
-        tabularNums,
-        { fontFamily: fonts.displayBold, fontSize: size, lineHeight: Math.round(size * 1.1), color },
-        { letterSpacing: -size / 24 },
-      ]}
-    >
-      {children}
-    </Text>
+    <Text style={[tabularNums, BIG_AMOUNT_STYLES[scale], { fontFamily: fonts.displayBold, color }]}>{children}</Text>
   );
 }
 
-/** Une provenance sans montant n'apprend rien : sa pilule est omise plutôt qu'affichée à 0,00 €. */
-function MonthlySplit({ summary }: { summary: DashboardSummary }) {
+function SmallText({ children, color, style }: { children: ReactNode; color: string; style?: TextStyle }) {
+  const { fonts } = useBrand();
+  return <Text style={[styles.smallText, { fontFamily: fonts.regular, color }, style]}>{children}</Text>;
+}
+
+function MonthlySplitChips({ summary }: { summary: DashboardSummary }) {
   const { observedCents, declaredCents } = summary.monthly;
   if (observedCents <= 0 && declaredCents <= 0) return null;
   return (
@@ -54,36 +77,28 @@ function MonthlySplit({ summary }: { summary: DashboardSummary }) {
 function ExcludedCurrencies({ summary }: { summary: DashboardSummary }) {
   const { colors } = useBrand();
   const text = describeExcludedCurrencies(summary);
-  return text ? (
-    <Text variant="bodySmall" style={{ color: colors.hero.muted }}>
-      {text}
-    </Text>
-  ) : null;
+  return text ? <SmallText color={colors.hero.muted}>{text}</SmallText> : null;
 }
 
 /** Carte du mois en mode compact : le seul fond contrasté de l'écran (sombre en clair, inversé en sombre). */
 export function MonthHero({ summary }: { summary: DashboardSummary }) {
-  const { colors } = useBrand();
+  const { colors, fonts } = useBrand();
   return (
     <Panel tone="hero" style={styles.hero}>
-      <Text variant="bodyMedium" style={{ color: colors.hero.muted }}>
-        Ce mois-ci
-      </Text>
-      <BigAmount size={48} color={colors.hero.text}>
+      <Text style={[styles.label, { fontFamily: fonts.regular, color: colors.hero.muted }]}>Ce mois-ci</Text>
+      <BigAmount scale="hero" color={colors.hero.text}>
         {formatMoney(summary.monthly.totalCents, summary.currency)}
       </BigAmount>
-      <MonthlySplit summary={summary} />
+      <MonthlySplitChips summary={summary} />
       <View style={[styles.divider, { backgroundColor: colors.hero.divider }]} />
       <View style={styles.between}>
         <View style={styles.row}>
-          <Text variant="bodyMedium" style={{ color: colors.hero.muted }}>
-            Sur 12 mois
-          </Text>
-          <OriginChip origin="estimated" inverse />
+          <Text style={[styles.label, { fontFamily: fonts.regular, color: colors.hero.muted }]}>Sur 12 mois</Text>
+          <EstimateTag inverse />
         </View>
-        <BigAmount size={16} color={colors.hero.text}>
+        <Text style={[tabularNums, styles.label, { fontFamily: fonts.bold, color: colors.hero.text }]}>
           {`≈ ${formatMoney(summary.annualProjectionCents, summary.currency)}`}
-        </BigAmount>
+        </Text>
       </View>
       <ExcludedCurrencies summary={summary} />
     </Panel>
@@ -106,10 +121,10 @@ export function ReviewPrompt({ pendingCount }: { pendingCount: number }) {
           </Text>
         </View>
         <View style={styles.grow}>
-          <Text variant="titleMedium">{describeDetections(pendingCount)}</Text>
-          <Text variant="bodySmall" style={{ color: colors.signalText }}>
-            À confirmer ou ignorer en un geste
+          <Text style={[styles.promptTitle, { fontFamily: fonts.bold, color: colors.ink }]}>
+            {detectionsTitle(pendingCount)}
           </Text>
+          <SmallText color={colors.signalText}>À confirmer ou ignorer en un geste</SmallText>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={22} color={colors.ink} />
       </Panel>
@@ -117,78 +132,87 @@ export function ReviewPrompt({ pendingCount }: { pendingCount: number }) {
   );
 }
 
-function IndicatorTile({ tone, children }: { tone?: 'surface' | 'hero' | 'signal'; children: ReactNode }) {
-  return (
-    <Panel tone={tone} style={styles.indicator}>
-      {children}
-    </Panel>
-  );
+/** Ligne de libellé à hauteur fixe : les chiffres des quatre tuiles restent alignés, pilule ou non. */
+function TileLabel({ children }: { children: ReactNode }) {
+  return <View style={styles.tileLabel}>{children}</View>;
 }
 
 /** Rangée d'indicateurs du mode large ; chaque chiffre n'y figure qu'une fois. */
 export function DashboardIndicators({ summary }: { summary: DashboardSummary }) {
-  const { colors } = useBrand();
+  const { colors, fonts } = useBrand();
   const hasPendingDetections = summary.pendingCandidates > 0;
+  const monthlySplit = describeMonthlySplit(summary);
+  const labelStyle = [styles.label, { fontFamily: fonts.regular, color: colors.inkMuted }];
   return (
     <View style={styles.indicators}>
-      <IndicatorTile tone="hero">
-        <Text variant="bodyMedium" style={{ color: colors.hero.muted }}>
-          Coût mensuel
-        </Text>
-        <BigAmount size={36} color={colors.hero.text}>
+      <Panel tone="hero" style={styles.indicator}>
+        <TileLabel>
+          <Text style={[styles.label, { fontFamily: fonts.regular, color: colors.hero.muted }]}>Coût mensuel</Text>
+        </TileLabel>
+        <BigAmount scale="tile" color={colors.hero.text}>
           {formatMoney(summary.monthly.totalCents, summary.currency)}
         </BigAmount>
-        <MonthlySplit summary={summary} />
+        {monthlySplit ? <SmallText color={colors.hero.muted}>{monthlySplit}</SmallText> : null}
         <ExcludedCurrencies summary={summary} />
-      </IndicatorTile>
-      <IndicatorTile>
-        <View style={styles.row}>
-          <Muted style={styles.indicatorLabel}>Sur 12 mois</Muted>
-          <OriginChip origin="estimated" />
-        </View>
-        <BigAmount size={36} color={colors.ink}>
+      </Panel>
+      <Panel style={styles.indicator}>
+        <TileLabel>
+          <Text style={labelStyle}>Sur 12 mois</Text>
+          <EstimateTag />
+        </TileLabel>
+        <BigAmount scale="tile" color={colors.ink}>
           {formatMoney(summary.annualProjectionCents, summary.currency)}
         </BigAmount>
-      </IndicatorTile>
-      <IndicatorTile>
-        <Muted style={styles.indicatorLabel}>Abonnements suivis</Muted>
-        <BigAmount size={36} color={colors.ink}>
+      </Panel>
+      <Panel style={styles.indicator}>
+        <TileLabel>
+          <Text style={labelStyle}>Abonnements suivis</Text>
+        </TileLabel>
+        <BigAmount scale="tile" color={colors.ink}>
           {String(summary.trackedCount)}
         </BigAmount>
-      </IndicatorTile>
+      </Panel>
       <Pressable
         onPress={openReview}
         accessibilityRole="link"
         accessibilityLabel={`À vérifier : ${describeDetections(summary.pendingCandidates)}. Ouvrir la file`}
         style={({ pressed }) => [styles.indicatorLink, pressed && styles.pressed]}
       >
-        <IndicatorTile tone={hasPendingDetections ? 'signal' : 'surface'}>
-          <Text variant="titleSmall" style={{ color: hasPendingDetections ? colors.signalText : colors.inkMuted }}>
-            À vérifier
-          </Text>
-          <BigAmount size={36} color={colors.ink}>
+        <Panel tone={hasPendingDetections ? 'signal' : 'surface'} style={styles.indicator}>
+          <TileLabel>
+            <Text
+              style={[
+                styles.label,
+                { fontFamily: fonts.semiBold, color: hasPendingDetections ? colors.signalText : colors.inkMuted },
+              ]}
+            >
+              À vérifier
+            </Text>
+          </TileLabel>
+          <BigAmount scale="tile" color={colors.ink}>
             {String(summary.pendingCandidates)}
           </BigAmount>
-          <Text variant="bodySmall" style={{ color: hasPendingDetections ? colors.signalText : colors.action }}>
-            Ouvrir la file →
-          </Text>
-        </IndicatorTile>
+          <SmallText color={hasPendingDetections ? colors.signalText : colors.action}>Ouvrir la file →</SmallText>
+        </Panel>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: { gap: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  hero: { gap: 14, padding: 22 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
   divider: { height: 1 },
+  label: { fontSize: 14, lineHeight: 20 },
+  smallText: { fontSize: 13, lineHeight: 18 },
   grow: { flex: 1, gap: 2 },
   reviewPrompt: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  promptTitle: { fontSize: 15, lineHeight: 20 },
   countTile: { width: 40, height: 40, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
   indicators: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'stretch' },
-  indicator: { flexGrow: 1, flexBasis: 160, gap: 8 },
-  indicatorLabel: { fontSize: 14 },
-  indicatorLink: { flexGrow: 1, flexBasis: 160, flexDirection: 'row' },
+  indicator: { flexGrow: 1, flexBasis: 200, gap: 8 },
+  tileLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 },
+  indicatorLink: { flexGrow: 1, flexBasis: 200, flexDirection: 'row' },
   pressed: { opacity: 0.7 },
 });

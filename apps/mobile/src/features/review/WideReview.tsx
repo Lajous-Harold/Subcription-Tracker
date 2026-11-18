@@ -4,8 +4,9 @@ import { Text } from 'react-native-paper';
 import type { Candidate } from '@subtracker/contracts';
 import { AppButton } from '@/components/AppButton';
 import { ConfidenceMeter, Panel, ServiceMonogram } from '@/components/ui';
-import { formatShortDate } from '@/lib/format';
-import { radii, tabularNums, useBrand } from '@/lib/theme';
+import { formatMediumDate } from '@/lib/format';
+import { useWidePageGutter } from '@/lib/layout';
+import { tabularNums, useBrand } from '@/lib/theme';
 import { candidateAfter, describeCandidateSource, type ReviewDecision } from './review-session';
 import {
   AmountText,
@@ -28,9 +29,12 @@ function describeDetections(count: number): string {
 
 function describeSchedule(candidate: Candidate): string {
   return candidate.stale
-    ? `par mois · dernier prélèvement le ${formatShortDate(candidate.lastDate)}`
-    : `par mois · prochaine échéance estimée le ${formatShortDate(candidate.nextDueDate)}`;
+    ? `par mois · dernier le ${formatMediumDate(candidate.lastDate)}`
+    : `par mois · prochain vers le ${formatMediumDate(candidate.nextDueDate)}`;
 }
+
+/** Plus serré que celui des panneaux : un élément de liste n'est pas un panneau. */
+const LIST_ITEM_RADIUS = 16;
 
 /** Au-delà, les plus anciennes se replient : les boutons de décision restent visibles sans défiler. */
 const OPERATIONS_SHOWN_FIRST = 6;
@@ -49,9 +53,7 @@ function ShortcutHint({ keys, action }: { keys: string; action: string }) {
   return (
     <View style={styles.shortcut}>
       <Kbd>{keys}</Kbd>
-      <Text variant="bodySmall" style={{ color: colors.inkMuted }}>
-        {action}
-      </Text>
+      <Text style={[styles.shortcutText, { color: colors.inkMuted }]}>{action}</Text>
     </View>
   );
 }
@@ -153,10 +155,7 @@ function CandidateDetail({
         </View>
       </View>
 
-      <View style={styles.signals}>
-        <ConfidenceMeter level={candidate.level} confidence={candidate.confidence} />
-        {candidate.stale ? <StalePill /> : null}
-      </View>
+      {candidate.stale ? <StalePill /> : null}
 
       <View style={styles.columns}>
         <DetailSection title="Pourquoi">
@@ -174,15 +173,9 @@ function CandidateDetail({
 
       {candidate.suggestedSubscriptionId ? <MergeNotice /> : null}
 
-      <View style={[styles.actions, { borderTopColor: colors.border }]}>
-        <AppButton onPress={() => onDecide('follow')} shortcutHint={shortcutsAvailable ? 'C' : undefined}>
-          Suivre cet abonnement
-        </AppButton>
-        <AppButton
-          variant="secondary"
-          onPress={() => onDecide('ignore')}
-          shortcutHint={shortcutsAvailable ? 'I' : undefined}
-        >
+      <View style={[styles.actions, { borderTopColor: colors.tile }]}>
+        <AppButton onPress={() => onDecide('follow')}>Suivre cet abonnement</AppButton>
+        <AppButton variant="secondary" onPress={() => onDecide('ignore')}>
           Ignorer
         </AppButton>
         <AppButton variant="ghost" onPress={() => openCandidate(candidate.id)}>
@@ -196,6 +189,7 @@ function CandidateDetail({
 /** Mode large : liste des détections et détail côte à côte, décision au clavier sur le web. */
 export function WideReview({ queue, accountNames }: { queue: ReviewQueue; accountNames: ReadonlyMap<string, string> }) {
   const { colors } = useBrand();
+  const gutter = useWidePageGutter();
   const { candidates } = queue;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = candidates.find((candidate) => candidate.id === selectedId) ?? candidates[0] ?? null;
@@ -218,10 +212,10 @@ export function WideReview({ queue, accountNames }: { queue: ReviewQueue; accoun
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}>
         {selected ? (
           <View style={styles.header}>
-            <Text variant="bodyLarge" style={[styles.grow, { color: colors.inkMuted }]}>
+            <Text style={[styles.grow, styles.intro, { color: colors.inkMuted }]}>
               {`${describeDetections(candidates.length)} dans vos opérations. Rien n’est suivi sans votre accord.`}
             </Text>
             {shortcutsAvailable ? <ShortcutHints /> : null}
@@ -262,17 +256,19 @@ export function WideReview({ queue, accountNames }: { queue: ReviewQueue; accoun
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { paddingHorizontal: 32, paddingTop: 8, paddingBottom: 96, gap: 24 },
-  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  scroll: { paddingTop: 0, paddingBottom: 96, gap: 24 },
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  intro: { fontSize: 15, lineHeight: 22 },
   grow: { flex: 1 },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   shortcuts: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   shortcut: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shortcutText: { fontSize: 13, lineHeight: 18 },
   kbd: { borderWidth: 1, borderBottomWidth: 2, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 1 },
   kbdText: { fontSize: 12, lineHeight: 18 },
   split: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
   list: { flexGrow: 1, flexShrink: 1, flexBasis: 300, maxWidth: 380, gap: 10 },
-  listItem: { borderRadius: radii.panel, borderWidth: 1, padding: 17, gap: 8 },
+  listItem: { borderRadius: LIST_ITEM_RADIUS, borderWidth: 1, padding: 17, gap: 8 },
   listItemSelected: { borderWidth: 2, padding: 16 },
   detail: { flexGrow: 2, flexShrink: 1, flexBasis: 520, padding: 28, gap: 22 },
   detailHeader: {
@@ -286,10 +282,9 @@ const styles = StyleSheet.create({
   detailTitle: { fontSize: 26, lineHeight: 32 },
   detailAmount: { alignItems: 'flex-end', marginLeft: 'auto' },
   alignRight: { textAlign: 'right' },
-  signals: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   columns: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
   detailSection: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 12 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingTop: 16, borderTopWidth: 1 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingTop: 12, borderTopWidth: 1 },
   empty: { maxWidth: 640, width: '100%', alignSelf: 'center' },
   banner: { position: 'absolute', bottom: 24, alignSelf: 'center', width: 480, maxWidth: '90%' },
 });

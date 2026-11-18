@@ -37,7 +37,7 @@ function AccountRow({
     >
       <View style={styles.rowText}>
         <Text variant="titleSmall">{account.name}</Text>
-        <Muted style={tabularNums}>{accountDescription(account)}</Muted>
+        <Muted style={tabularNums}>{accountDescription({ ...account, analyzed: checked })}</Muted>
       </View>
       <Icon
         source={checked ? 'checkbox-marked' : 'checkbox-blank-outline'}

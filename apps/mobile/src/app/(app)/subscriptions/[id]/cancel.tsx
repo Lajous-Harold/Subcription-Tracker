@@ -13,12 +13,13 @@ import {
 import { AppButton } from '@/components/AppButton';
 import { DateField } from '@/components/DateField';
 import { useToast } from '@/components/toast';
-import { ErrorState, ErrorText, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
+import { ErrorState, ErrorText, FormColumn, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { CancellationProcedure, useSubscriptionProvider } from '@/features/subscriptions/cancellation';
 import { OptionGroup, type Option } from '@/features/subscriptions/OptionGroup';
 import { api } from '@/lib/api';
-import { CANCELLATION_METHOD_LABELS, CANCELLATION_STATUS_LABELS, formatDate } from '@/lib/format';
+import { CANCELLATION_METHOD_LABELS, CANCELLATION_STATUS_LABELS, formatMediumDate } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
+import { useLayoutMode } from '@/lib/layout';
 import { queryKeys, storeUpdatedSubscription } from '@/lib/query';
 
 const STATUS_OPTIONS: Option<CancellationStatus>[] = (['started', 'requested', 'confirmed', 'abandoned'] as const).map(
@@ -43,7 +44,7 @@ function verificationNotice(provider: Provider | null): string {
   const verifiedAt = provider?.cancellation.lastVerifiedAt;
   if (!provider) return 'Fournisseur hors catalogue : adaptez ces étapes à votre contrat.';
   if (verifiedAt) {
-    return `Dernière vérification le ${formatDate(verifiedAt)}. Les parcours changent : en cas de doute, fiez-vous au site officiel.`;
+    return `Dernière vérification le ${formatMediumDate(verifiedAt)}. Les parcours changent : en cas de doute, fiez-vous au site officiel.`;
   }
   return 'Indicative seulement : fiez-vous au site officiel du fournisseur.';
 }
@@ -59,6 +60,7 @@ function FieldLabel({ children }: { children: string }) {
 function CancellationForm({ subscription, provider }: { subscription: SubscriptionDetail; provider: Provider | null }) {
   const id = subscription.id;
   const toast = useToast();
+  const isWide = useLayoutMode() === 'wide';
   const tracked = subscription.cancellation;
   const [status, setStatus] = useState<CancellationStatus>(tracked?.status ?? 'started');
   const [method, setMethod] = useState<CancellationMethod | null>(
@@ -101,64 +103,84 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
     save.mutate();
   };
 
+  const procedurePanel = (
+    <Panel>
+      <CancellationProcedure
+        provider={provider}
+        title={`Résilier ${provider?.name ?? subscription.customProviderName ?? subscription.label}`}
+        showHelpLink
+      />
+      <Muted>{verificationNotice(provider)}</Muted>
+    </Panel>
+  );
+  const disclaimer = (
+    <Muted>
+      L’application ne résilie rien à votre place : elle vous aide à suivre la démarche. Une absence de prélèvement ne
+      prouve pas qu’une résiliation est effective.
+    </Muted>
+  );
+  const trackingPanel = (
+    <Panel>
+      <Text variant="titleLarge" accessibilityRole="header">
+        Où en êtes-vous ?
+      </Text>
+      <OptionGroup label="État de la démarche" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+      <FieldLabel>Méthode utilisée</FieldLabel>
+      <OptionGroup label="Méthode utilisée" options={METHOD_OPTIONS} value={method} onChange={setMethod} />
+      <FieldLabel>Détails de la demande</FieldLabel>
+      <DateField label="Date de la demande" value={requestedAt} onChange={setRequestedAt} clearable />
+      <DateField label="Date d’effet" value={effectiveDate} onChange={setEffectiveDate} clearable />
+      <TextInput
+        label="Référence ou numéro de dossier"
+        mode="outlined"
+        outlineStyle={controlStyles.fieldOutline}
+        value={reference}
+        onChangeText={setReference}
+      />
+      <TextInput
+        label="Notes"
+        mode="outlined"
+        outlineStyle={controlStyles.fieldOutline}
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+      />
+      <ErrorText message={error} />
+      <View style={formStyles.actions}>
+        {tracked ? (
+          <AppButton
+            variant="destructive"
+            style={formStyles.action}
+            onPress={() => clear.mutate()}
+            loading={clear.isPending}
+          >
+            Effacer le suivi
+          </AppButton>
+        ) : null}
+        <AppButton style={formStyles.action} onPress={submit} loading={save.isPending}>
+          Enregistrer le suivi
+        </AppButton>
+      </View>
+    </Panel>
+  );
+
   return (
     <Screen>
-      <Panel>
-        <CancellationProcedure
-          provider={provider}
-          title={`Résilier ${provider?.name ?? subscription.customProviderName ?? subscription.label}`}
-          showHelpLink
-        />
-        <Muted>{verificationNotice(provider)}</Muted>
-      </Panel>
-
-      <Muted>
-        L’application ne résilie rien à votre place : elle vous aide à suivre la démarche. Une absence de prélèvement ne
-        prouve pas qu’une résiliation est effective.
-      </Muted>
-
-      <Panel>
-        <Text variant="titleLarge" accessibilityRole="header">
-          Où en êtes-vous ?
-        </Text>
-        <OptionGroup label="État de la démarche" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        <FieldLabel>Méthode utilisée</FieldLabel>
-        <OptionGroup label="Méthode utilisée" options={METHOD_OPTIONS} value={method} onChange={setMethod} />
-        <FieldLabel>Détails de la demande</FieldLabel>
-        <DateField label="Date de la demande" value={requestedAt} onChange={setRequestedAt} clearable />
-        <DateField label="Date d’effet" value={effectiveDate} onChange={setEffectiveDate} clearable />
-        <TextInput
-          label="Référence ou numéro de dossier"
-          mode="outlined"
-          outlineStyle={controlStyles.fieldOutline}
-          value={reference}
-          onChangeText={setReference}
-        />
-        <TextInput
-          label="Notes"
-          mode="outlined"
-          outlineStyle={controlStyles.fieldOutline}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-        <ErrorText message={error} />
-        <View style={formStyles.actions}>
-          {tracked ? (
-            <AppButton
-              variant="destructive"
-              style={formStyles.action}
-              onPress={() => clear.mutate()}
-              loading={clear.isPending}
-            >
-              Effacer le suivi
-            </AppButton>
-          ) : null}
-          <AppButton style={formStyles.action} onPress={submit} loading={save.isPending}>
-            Enregistrer le suivi
-          </AppButton>
+      {isWide ? (
+        <View style={formStyles.columns}>
+          <View style={formStyles.formColumn}>{trackingPanel}</View>
+          <View style={formStyles.asideColumn}>
+            {procedurePanel}
+            {disclaimer}
+          </View>
         </View>
-      </Panel>
+      ) : (
+        <FormColumn>
+          {procedurePanel}
+          {disclaimer}
+          {trackingPanel}
+        </FormColumn>
+      )}
     </Screen>
   );
 }
@@ -167,4 +189,7 @@ const formStyles = StyleSheet.create({
   fieldLabel: { marginTop: 4 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   action: { flexGrow: 1 },
+  columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
+  formColumn: { flex: 1, maxWidth: 560 },
+  asideColumn: { flex: 1, maxWidth: 440, gap: 16 },
 });

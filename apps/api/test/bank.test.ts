@@ -480,6 +480,31 @@ describe('comptes bancaires : numéro masqué et nombre d’opérations', () => 
   });
 });
 
+describe('comptes bancaires : provenance', () => {
+  it('un compte importé de Powens a pour provenance « powens »', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const res = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
+
+    expect(res.body.items.map((account: { source: string }) => account.source)).toEqual(['powens', 'powens', 'powens']);
+  });
+
+  it('la mise à jour d’un compte Powens renvoie aussi sa provenance', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+    const current = (await listAccountsByName(user)).get('Compte courant')!;
+
+    const res = await request(app)
+      .patch(`/api/bank/accounts/${current.id}`)
+      .set(user.auth)
+      .send({ analyzed: false })
+      .expect(200);
+
+    expect(res.body.source).toBe('powens');
+  });
+});
+
 describe('opérations d’un candidat importé de Powens', () => {
   it('liste la date et le montant débité de chaque opération, de la plus récente à la plus ancienne', async () => {
     const user = await registerUser(app);

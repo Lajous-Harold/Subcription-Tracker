@@ -96,7 +96,7 @@ export function OperationList({
               role="listitem"
               accessible
               accessibilityLabel={`${date}, ${amount}`}
-              style={[styles.operation, index > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : null]}
+              style={[styles.operation, index > 0 ? { borderTopWidth: 1, borderTopColor: colors.tile } : null]}
             >
               <Text variant="bodyMedium" style={tabularNums}>
                 {date}
@@ -124,7 +124,7 @@ export function OperationList({
   );
 }
 
-export const UNDO_BANNER_MIN_HEIGHT = 48;
+const UNDO_BANNER_MIN_HEIGHT = 48;
 export const REASON_GAP = 10;
 
 /** Reste affiché tant que la décision n'est pas partie : « Annuler » la reprend alors à coup sûr. */
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   reason: { flexDirection: 'row', gap: 10 },
   reasonIcon: { marginTop: 1 },
   reasonText: { flex: 1 },
-  sectionLabel: { fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' },
+  sectionLabel: { fontSize: 14, lineHeight: 20, letterSpacing: 1, textTransform: 'uppercase' },
   operation: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 6 },
   operationsToggle: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   banner: {

@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
   scroller: { flexGrow: 1 },
   table: { flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 8, paddingVertical: 10 },
-  bodyRow: { minHeight: 52, borderTopWidth: 1 },
+  bodyRow: { minHeight: 44, paddingVertical: 12, borderTopWidth: 1 },
   headerText: { fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
 });

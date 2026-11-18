@@ -3,21 +3,24 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, IconButton, Text } from 'react-native-paper';
+import Svg, { Path } from 'react-native-svg';
 import type { Origin, Payment, ResettableField, SubscriptionDetail } from '@subtracker/contracts';
 import { AppButton } from '@/components/AppButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { HeaderIconButton } from '@/components/navigation/HeaderIconButton';
 import { useToast } from '@/components/toast';
-import { ErrorState, Loading, Muted, OriginChip, Panel, Screen, ServiceMonogram, styles } from '@/components/ui';
+import { ErrorState, Loading, Muted, OriginChip, Panel, Screen, ServiceMonogram } from '@/components/ui';
 import { AddPaymentDialog } from '@/features/subscriptions/AddPaymentDialog';
 import {
   CancellationProcedure,
-  CancellationProgress,
+  CancellationTracker,
   useSubscriptionProvider,
 } from '@/features/subscriptions/cancellation';
+import { leaveTo } from '@/features/subscriptions/navigation';
 import { PaymentHistory } from '@/features/subscriptions/PaymentHistory';
 import { PROVIDER_CATEGORY_LABELS } from '@/features/subscriptions/presentation';
 import { api } from '@/lib/api';
-import { formatDate, formatDateTime, formatMoney, formatProviderName, formatShortDate } from '@/lib/format';
+import { formatDateTime, formatMediumDate, formatMoney, formatShortDate } from '@/lib/format';
 import { useLayoutMode } from '@/lib/layout';
 import { invalidatePaymentData, invalidateSubscriptionData, queryKeys, storeUpdatedSubscription } from '@/lib/query';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
@@ -93,7 +96,8 @@ function PaymentRow({ payment, subscriptionId }: { payment: Payment; subscriptio
     },
     onError: toast.showError,
   });
-  const description = [formatDate(payment.date), fromBank ? 'Opération bancaire' : 'Saisi à la main', payment.note]
+  const date = formatMediumDate(payment.date);
+  const description = [date, fromBank ? 'Opération bancaire' : 'Saisi à la main', payment.note]
     .filter(Boolean)
     .join(' · ');
   return (
@@ -112,14 +116,81 @@ function PaymentRow({ payment, subscriptionId }: { payment: Payment; subscriptio
           </Text>
         ) : null}
       </View>
-      <IconButton
-        icon={fromBank ? 'link-off' : 'delete-outline'}
-        size={20}
-        style={detailStyles.iconTarget}
+      <AppButton
+        variant={fromBank ? 'ghost' : 'destructiveGhost'}
         onPress={() => removePayment.mutate()}
-        disabled={removePayment.isPending}
-        accessibilityLabel={fromBank ? 'Détacher l’opération' : 'Supprimer le paiement'}
+        loading={removePayment.isPending}
+        accessibilityLabel={fromBank ? `Détacher l’opération du ${date}` : `Supprimer le paiement du ${date}`}
+      >
+        {fromBank ? 'Détacher' : 'Supprimer'}
+      </AppButton>
+    </View>
+  );
+}
+
+function EditButton({ onPress }: { onPress: () => void }) {
+  const brand = useBrand();
+  return (
+    <HeaderIconButton accessibilityLabel="Modifier l’abonnement" onPress={onPress}>
+      {/* Masqué par la `View` : sur le web, `Svg` transmet ses props telles quelles au DOM. */}
+      <View aria-hidden>
+        <Svg width={18} height={18} viewBox="0 0 24 24">
+          <Path
+            d="M4 20h4L19 9l-4-4L4 16z"
+            fill="none"
+            stroke={brand.colors.ink}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </View>
+    </HeaderIconButton>
+  );
+}
+
+/** Catégorie du catalogue, puis le fournisseur quand le libellé ne le nomme pas déjà. */
+function identitySubtitle(subscription: SubscriptionDetail): string | null {
+  const providerName = subscription.provider?.name ?? subscription.customProviderName;
+  return (
+    [
+      subscription.provider ? PROVIDER_CATEGORY_LABELS[subscription.provider.category] : null,
+      providerName && providerName !== subscription.label ? providerName : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || null
+  );
+}
+
+/** Monogramme, nom et provenance : en tête du contenu en compact, titre de la page en large. */
+function SubscriptionIdentity({ subscription, wide }: { subscription: SubscriptionDetail; wide: boolean }) {
+  const brand = useBrand();
+  const subtitle = identitySubtitle(subscription);
+  return (
+    <View style={detailStyles.identity}>
+      <ServiceMonogram
+        name={subscription.provider?.name ?? subscription.customProviderName ?? subscription.label}
+        size={wide ? 56 : 64}
       />
+      <View style={detailStyles.identityText}>
+        <Text
+          accessibilityRole="header"
+          style={[
+            wide ? detailStyles.wideName : detailStyles.name,
+            { fontFamily: brand.fonts.displayBold, color: brand.colors.ink },
+          ]}
+        >
+          {subscription.label}
+        </Text>
+        <View style={detailStyles.identityMeta}>
+          <OriginChip origin={subscription.amount.origin} />
+          {subscription.status === 'archived' ? (
+            <View style={[detailStyles.statusPill, { backgroundColor: brand.colors.tile }]}>
+              <Text variant="labelMedium">Archivé</Text>
+            </View>
+          ) : null}
+          {subtitle ? <Text style={[detailStyles.subtitle, { color: brand.colors.inkMuted }]}>{subtitle}</Text> : null}
+        </View>
+      </View>
     </View>
   );
 }
@@ -156,7 +227,7 @@ export default function SubscriptionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const toast = useToast();
   const brand = useBrand();
-  const layout = useLayoutMode();
+  const isWide = useLayoutMode() === 'wide';
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -183,7 +254,7 @@ export default function SubscriptionDetailScreen() {
     onSuccess: () => {
       invalidateSubscriptionData(id);
       toast.show('Abonnement retiré de l’application');
-      router.back();
+      leaveTo('/subscriptions');
     },
     onError: toast.showError,
   });
@@ -195,50 +266,12 @@ export default function SubscriptionDetailScreen() {
   const sub = subscription.data;
   const paymentList = payments.data ?? [];
   const canReset = (origin: Origin | undefined) => origin === 'declared' && sub.bankLinked;
-  const providerName = formatProviderName(sub);
-  const subtitle = [
-    sub.provider ? PROVIDER_CATEGORY_LABELS[sub.provider.category] : null,
-    providerName !== sub.label ? providerName : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
   const nextDueLabel = sub.nextDueDate
     ? formatShortDate(sub.nextDueDate.value)
     : sub.status === 'active'
       ? 'Inconnu'
       : 'Aucun';
-
-  const header = (
-    <View style={detailStyles.header}>
-      <ServiceMonogram name={sub.provider?.name ?? sub.customProviderName ?? sub.label} size={64} />
-      <View style={detailStyles.headerText}>
-        <Text variant="headlineSmall" accessibilityRole="header">
-          {sub.label}
-        </Text>
-        <View style={styles.row}>
-          <OriginChip origin={sub.amount.origin} />
-          {sub.status === 'archived' ? (
-            <View style={[detailStyles.statusPill, { backgroundColor: brand.colors.tile }]}>
-              <Text variant="labelMedium">Archivé</Text>
-            </View>
-          ) : null}
-          {subtitle ? (
-            <Text variant="bodySmall" style={{ color: brand.colors.inkMuted }}>
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-      <IconButton
-        icon="pencil-outline"
-        mode="outlined"
-        size={20}
-        style={detailStyles.iconTarget}
-        onPress={() => router.push(`/subscriptions/${id}/edit`)}
-        accessibilityLabel="Modifier l’abonnement"
-      />
-    </View>
-  );
+  const openEditor = () => router.push(`/subscriptions/${id}/edit`);
 
   const missingPaymentNotice = sub.paymentMissing ? (
     <Panel tone="signal" style={detailStyles.notice}>
@@ -266,17 +299,15 @@ export default function SubscriptionDetailScreen() {
         </View>
         <View style={detailStyles.nextDue}>
           <Muted>Prochain</Muted>
-          <Text variant="titleMedium" style={tabularNums}>
-            {nextDueLabel}
-          </Text>
-          {sub.nextDueDate ? (
-            <View style={detailStyles.inline}>
-              <OriginChip origin={sub.nextDueDate.origin} />
-              {sub.nextDueDate.origin === 'declared' ? (
-                <ResetButton fieldLabel="l’échéance" onPress={() => reset.mutate('nextDueDate')} />
-              ) : null}
-            </View>
-          ) : null}
+          <View style={detailStyles.inline}>
+            {sub.nextDueDate ? <OriginChip origin={sub.nextDueDate.origin} /> : null}
+            <Text variant="titleMedium" style={tabularNums}>
+              {nextDueLabel}
+            </Text>
+            {sub.nextDueDate?.origin === 'declared' ? (
+              <ResetButton fieldLabel="l’échéance" onPress={() => reset.mutate('nextDueDate')} />
+            ) : null}
+          </View>
         </View>
       </View>
       {paymentList.length > 0 ? <PaymentHistory payments={paymentList} /> : null}
@@ -352,22 +383,6 @@ export default function SubscriptionDetailScreen() {
       ) : (
         <CancellationProcedure provider={provider.data ?? null} title="Résilier" />
       )}
-      <View style={[detailStyles.separator, { backgroundColor: brand.colors.border }]} />
-      <Text variant="titleMedium" accessibilityRole="header">
-        Suivi de votre démarche
-      </Text>
-      {sub.cancellation ? (
-        <CancellationProgress cancellation={sub.cancellation} />
-      ) : (
-        <Muted>Aucune démarche suivie. L’application n’envoie rien au fournisseur.</Muted>
-      )}
-      <AppButton
-        variant="secondary"
-        icon="clipboard-check-outline"
-        onPress={() => router.push(`/subscriptions/${id}/cancel`)}
-      >
-        {sub.cancellation ? 'Mettre à jour le suivi' : 'Suivre ma résiliation'}
-      </AppButton>
     </Panel>
   );
 
@@ -429,13 +444,20 @@ export default function SubscriptionDetailScreen() {
     void subscription.refetch();
     void payments.refetch();
   };
-  const screenOptions = <Stack.Screen options={{ title: sub.label, headerTitle: '' }} />;
+  const screenOptions = (
+    <Stack.Screen
+      options={{
+        title: sub.label,
+        headerTitle: isWide ? () => <SubscriptionIdentity subscription={sub} wide /> : '',
+        headerRight: () => <EditButton onPress={openEditor} />,
+      }}
+    />
+  );
 
   return (
     <Screen refreshing={subscription.isRefetching} onRefresh={refresh}>
       {screenOptions}
-      {header}
-      {layout === 'wide' ? (
+      {isWide ? (
         <View style={detailStyles.columns}>
           <View style={detailStyles.mainColumn}>
             {missingPaymentNotice}
@@ -445,13 +467,18 @@ export default function SubscriptionDetailScreen() {
             <EventHistory events={sub.events} />
             {trackingActions}
           </View>
-          <View style={detailStyles.sideColumn}>{cancellationPanel}</View>
+          <View style={detailStyles.sideColumn}>
+            {cancellationPanel}
+            <CancellationTracker subscription={sub} />
+          </View>
         </View>
       ) : (
         <>
+          <SubscriptionIdentity subscription={sub} wide={false} />
           {missingPaymentNotice}
           {amountPanel}
           {cancellationPanel}
+          <CancellationTracker subscription={sub} />
           {paymentsPanel}
           {detailsPanel}
           <EventHistory events={sub.events} />
@@ -464,8 +491,12 @@ export default function SubscriptionDetailScreen() {
 }
 
 const detailStyles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  headerText: { flex: 1, gap: 6 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 14, flexShrink: 1 },
+  identityText: { flexShrink: 1, gap: 4 },
+  name: { fontSize: 26, lineHeight: 32, letterSpacing: -0.5 },
+  wideName: { fontSize: 32, lineHeight: 38, letterSpacing: -1 },
+  identityMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  subtitle: { fontSize: 13, lineHeight: 18 },
   statusPill: { borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 2 },
   iconTarget: { width: 44, height: 44, margin: 0 },
   notice: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -473,16 +504,18 @@ const detailStyles = StyleSheet.create({
   amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
   amountBlock: { flexShrink: 1 },
   amount: { fontSize: 34, lineHeight: 40, letterSpacing: -1 },
-  nextDue: { alignItems: 'flex-end', gap: 4 },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  nextDue: { alignItems: 'flex-end', gap: 2 },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   compactPanel: { gap: 4 },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Sans `alignContent`, les lignes repliées se tassent en haut et la hauteur minimale reste vide en bas.
+    alignContent: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 8,
-    minHeight: 52,
+    minHeight: 48,
     paddingVertical: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
@@ -507,7 +540,6 @@ const detailStyles = StyleSheet.create({
   paymentAmount: { fontSize: 16 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   action: { flexGrow: 1 },
-  separator: { height: StyleSheet.hairlineWidth },
   historyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   eventRow: { paddingVertical: 8, gap: 2, borderTopWidth: StyleSheet.hairlineWidth },
   columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },

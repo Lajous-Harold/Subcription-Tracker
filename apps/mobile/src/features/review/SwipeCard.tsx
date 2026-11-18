@@ -14,7 +14,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import type { Candidate } from '@subtracker/contracts';
 import { ConfidenceMeter, ServiceMonogram } from '@/components/ui';
-import { radii, useBrand } from '@/lib/theme';
+import { radii, useAppTheme } from '@/lib/theme';
 import {
   describeOperationsLink,
   SWIPE_ACTIVATION_DISTANCE,
@@ -25,11 +25,14 @@ import {
 } from './review-session';
 import { AmountText, MergeNotice, monthlyAmount, openCandidate, Reason, REASON_GAP, StalePill } from './ReviewParts';
 
-const REASONS_ON_CARD = 3;
-const MAX_ROTATION_DEG = 12;
+/** Inclinaison atteinte quand la carte a parcouru la moitié de sa largeur, puis plafonnée. */
+const HALF_WIDTH_ROTATION_DEG = 10;
 const EXIT_DURATION_MS = 220;
 const EXIT_DISTANCE_WIDTH_RATIO = 1.5;
 const FALLBACK_CARD_WIDTH = 340;
+
+/** Les mesures du web tombent sur des demi-pixels : sans marge, un élément qui tient serait jugé débordant. */
+const FIT_TOLERANCE = 1;
 
 /**
  * Seule partie de la carte qui cède quand l'écran manque de hauteur : les éléments qui ne tiennent pas
@@ -48,7 +51,7 @@ function FittedDetails({ children }: { children: { key: string; node: ReactNode 
         <View
           key={key}
           onLayout={(event) => measureItem(key, event)}
-          style={(itemBottoms[key] ?? 0) > availableHeight ? styles.overflowing : null}
+          style={(itemBottoms[key] ?? 0) > availableHeight + FIT_TOLERANCE ? styles.overflowing : null}
         >
           {node}
         </View>
@@ -73,7 +76,8 @@ export function SwipeCard({
   onDecide: (decision: ReviewDecision) => void;
   ref: Ref<SwipeCardHandle>;
 }) {
-  const { colors, fonts } = useBrand();
+  const theme = useAppTheme();
+  const { colors, fonts } = theme.brand;
   const reduceMotion = useReducedMotion();
   const translateX = useSharedValue(0);
   const cardWidth = useSharedValue(FALLBACK_CARD_WIDTH);
@@ -122,8 +126,8 @@ export function SwipeCard({
       ? 0
       : interpolate(
           translateX.get(),
-          [-cardWidth.get(), cardWidth.get()],
-          [-MAX_ROTATION_DEG, MAX_ROTATION_DEG],
+          [-cardWidth.get() / 2, cardWidth.get() / 2],
+          [-HALF_WIDTH_ROTATION_DEG, HALF_WIDTH_ROTATION_DEG],
           Extrapolation.CLAMP,
         );
     return { transform: [{ translateX: translateX.get() }, { rotate: `${rotation}deg` }] };
@@ -169,7 +173,11 @@ export function SwipeCard({
         onAccessibilityAction={(event) => runAccessibilityAction(event.nativeEvent.actionName)}
         style={[
           styles.card,
-          { backgroundColor: colors.surface, borderColor: colors.border, boxShadow: CARD_SHADOW },
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            boxShadow: theme.dark ? DARK_CARD_SHADOW : LIGHT_CARD_SHADOW,
+          },
           cardStyle,
         ]}
       >
@@ -189,21 +197,17 @@ export function SwipeCard({
 
         <View style={styles.amountRow}>
           <AmountText size={40}>{monthlyAmount(candidate)}</AmountText>
-          <Text variant="bodyLarge" style={{ color: colors.inkMuted }}>
-            {`/ mois · le ${candidate.dayOfMonth}`}
-          </Text>
+          <Text style={[styles.amountSuffix, { color: colors.inkMuted }]}>{`/ mois · le ${candidate.dayOfMonth}`}</Text>
         </View>
 
         <View style={styles.signals}>
-          <ConfidenceMeter level={candidate.level} confidence={candidate.confidence} />
+          <ConfidenceMeter level={candidate.level} confidence={candidate.confidence} emphasized />
           {candidate.stale ? <StalePill /> : null}
         </View>
 
         <FittedDetails>
           {[
-            ...candidate.reasons
-              .slice(0, REASONS_ON_CARD)
-              .map((reason) => ({ key: reason, node: <Reason>{reason}</Reason> })),
+            ...candidate.reasons.map((reason) => ({ key: reason, node: <Reason>{reason}</Reason> })),
             ...(candidate.suggestedSubscriptionId ? [{ key: 'merge-notice', node: <MergeNotice /> }] : []),
           ]}
         </FittedDetails>
@@ -213,7 +217,7 @@ export function SwipeCard({
           onPress={() => openCandidate(candidate.id)}
           style={({ pressed }) => [styles.link, pressed && styles.pressed]}
         >
-          <Text style={{ fontFamily: fonts.semiBold, color: colors.action }}>{operationsLink}</Text>
+          <Text style={[styles.linkText, { fontFamily: fonts.semiBold, color: colors.action }]}>{operationsLink}</Text>
         </Pressable>
 
         <Animated.View
@@ -233,18 +237,22 @@ export function SwipeCard({
   );
 }
 
-const CARD_SHADOW = '0px 14px 32px rgba(14, 17, 22, 0.12)';
+const LIGHT_CARD_SHADOW = '0px 18px 40px rgba(14, 17, 22, 0.14)';
+/** En sombre, l'ombre seule se perd sur le fond : un liseré clair en haut détache la carte. */
+const DARK_CARD_SHADOW = 'inset 0px 1px 0px rgba(255, 255, 255, 0.06), 0px 18px 40px rgba(0, 0, 0, 0.55)';
 
 const styles = StyleSheet.create({
-  card: { flexGrow: 1, flexBasis: 0, borderRadius: radii.panel, borderWidth: 1, padding: 22, gap: 16 },
+  card: { flexShrink: 1, minHeight: 0, borderRadius: radii.panel, borderWidth: 1, padding: 22, gap: 16 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   identityText: { flex: 1, gap: 2 },
   name: { fontSize: 22, lineHeight: 28 },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 },
+  amountSuffix: { fontSize: 15, lineHeight: 20 },
   signals: { gap: 8 },
   details: { flexShrink: 1, minHeight: 0, overflow: 'hidden', gap: REASON_GAP },
   overflowing: { opacity: 0 },
-  link: { minHeight: 44, marginTop: 'auto', justifyContent: 'center', alignSelf: 'flex-start' },
+  link: { minHeight: 44, marginTop: -10, marginBottom: -12, justifyContent: 'center', alignSelf: 'flex-start' },
+  linkText: { fontSize: 14 },
   pressed: { opacity: 0.7 },
   stamp: {
     position: 'absolute',

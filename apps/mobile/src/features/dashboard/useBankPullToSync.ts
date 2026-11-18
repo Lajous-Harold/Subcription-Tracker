@@ -13,7 +13,10 @@ export interface BankPullToSync {
   refresh: () => Promise<void>;
 }
 
-export function useBankPullToSync(refetchDashboard: () => Promise<unknown>): BankPullToSync {
+const refetchDashboard = () => queryClient.refetchQueries({ queryKey: queryKeys.dashboard });
+
+/** Une instance par appelant (écran, bouton d'en-tête) : chacune suit son propre rafraîchissement. */
+export function useBankPullToSync(): BankPullToSync {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const { bankLinkQuery, linkedBank, syncing } = useBankLink();

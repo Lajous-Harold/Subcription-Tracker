@@ -1,4 +1,4 @@
-import type { CancellationStatus, Payment, ProviderCategory } from '@subtracker/contracts';
+import type { Cancellation, CancellationStatus, Payment, ProviderCategory } from '@subtracker/contracts';
 import { formatDate, formatMoney } from '@/lib/format';
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
@@ -75,9 +75,31 @@ export function describePaymentHistory(payments: Payment[]): string {
   return `${intro}, de ${formatPayment(smallest)} à ${formatPayment(largest)} ; le plus récent : ${formatPayment(latest)} le ${formatDate(latest.date)}`;
 }
 
-/** `abandoned` sort de la progression : la démarche n'avance plus. */
-export const CANCELLATION_PROGRESS: { status: Exclude<CancellationStatus, 'abandoned'>; label: string }[] = [
-  { status: 'started', label: 'Commencée' },
-  { status: 'requested', label: 'Demandée' },
-  { status: 'confirmed', label: 'Confirmée' },
+/** Choix rapide de la fiche : l'abonnement reste actif, sa résiliation est demandée, ou elle est confirmée. */
+export type CancellationChoice = 'active' | 'requested' | 'confirmed';
+
+export const CANCELLATION_CHOICES: { value: CancellationChoice; label: string }[] = [
+  { value: 'active', label: 'Actif' },
+  { value: 'requested', label: 'Demandée' },
+  { value: 'confirmed', label: 'Résilié' },
 ];
+
+/** Une démarche seulement commencée ne correspond à aucun choix rapide : le détail se règle dans le formulaire. */
+export function cancellationChoiceOf(cancellation: Pick<Cancellation, 'status'> | null): CancellationChoice | null {
+  const status = cancellation?.status;
+  if (!status || status === 'abandoned') return 'active';
+  if (status === 'started') return null;
+  return status;
+}
+
+/**
+ * Statut à enregistrer pour un choix rapide, ou `null` s'il n'y a rien à envoyer. Revenir à « Actif » abandonne
+ * la démarche plutôt que de l'effacer : sa référence et ses dates restent consultables.
+ */
+export function cancellationStatusFor(
+  choice: CancellationChoice,
+  cancellation: Pick<Cancellation, 'status'> | null,
+): CancellationStatus | null {
+  if (choice === cancellationChoiceOf(cancellation)) return null;
+  return choice === 'active' ? 'abandoned' : choice;
+}

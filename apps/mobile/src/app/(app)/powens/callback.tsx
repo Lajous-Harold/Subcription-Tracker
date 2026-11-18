@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { AppButton } from '@/components/AppButton';
-import { Muted, Panel, Screen } from '@/components/ui';
+import { Panel } from '@/components/ui';
 import { errorMessage } from '@/lib/http';
 import { completeConnectCallback, type CallbackParams } from '@/lib/powens-connect';
 import { invalidateBankData } from '@/lib/query';
@@ -32,51 +32,56 @@ export default function PowensCallbackScreen() {
       .catch((caught) => setState({ kind: 'failed', message: errorMessage(caught) }));
   }, [params]);
 
-  if (state.kind === 'failed') return <CallbackFailed message={state.message} />;
-  return <CallbackProgress completed={state.kind === 'completed'} />;
+  return <CallbackStatus state={state} />;
 }
 
-function CallbackProgress({ completed }: { completed: boolean }) {
+function CallbackStatus({ state }: { state: CallbackState }) {
   const { colors } = useBrand();
+  const failed = state.kind === 'failed';
+
+  let badge: ReactNode;
+  let title: string;
+  let message: string;
+  if (state.kind === 'pending') {
+    badge = <ActivityIndicator color={colors.action} />;
+    title = 'Finalisation de la connexion bancaire…';
+    message = 'Quelques secondes, le temps de confirmer l’accès auprès de Powens.';
+  } else if (state.kind === 'completed') {
+    badge = <Icon source="check" size={24} color={colors.action} />;
+    title = 'Banque connectée';
+    message = 'Retour à l’écran Banque…';
+  } else {
+    badge = <Icon source="alert-circle-outline" size={24} color={colors.signalText} />;
+    title = 'Connexion bancaire non finalisée';
+    message = state.message;
+  }
+
   return (
-    <View style={[styles.center, { backgroundColor: colors.background }]} accessibilityLiveRegion="polite">
-      {completed ? (
-        <Icon source="check-circle-outline" size={40} color={colors.action} />
-      ) : (
-        <ActivityIndicator size="large" />
-      )}
-      <Text variant="titleMedium" style={styles.centerText}>
-        {completed ? 'Banque connectée' : 'Finalisation de la connexion bancaire…'}
-      </Text>
-      <Muted style={styles.centerText}>
-        {completed ? 'Retour à l’écran Banque.' : 'Quelques secondes, le temps de confirmer l’accès auprès de Powens.'}
-      </Muted>
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <Panel tone={failed ? 'signal' : 'surface'} style={styles.panel}>
+        <View accessibilityLiveRegion="polite" style={styles.content}>
+          <View style={[styles.badge, { backgroundColor: failed ? colors.surface : colors.actionTint }]}>{badge}</View>
+          <Text variant="titleLarge" accessibilityRole="header" style={styles.centerText}>
+            {title}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.centerText, { color: failed ? colors.ink : colors.inkMuted }]}>
+            {message}
+          </Text>
+        </View>
+        {failed ? (
+          <AppButton icon="arrow-left" onPress={() => router.replace('/bank')}>
+            Revenir à la banque
+          </AppButton>
+        ) : null}
+      </Panel>
     </View>
   );
 }
 
-function CallbackFailed({ message }: { message: string }) {
-  const { colors } = useBrand();
-  return (
-    <Screen>
-      <Panel tone="signal">
-        <View style={[styles.statusIcon, { backgroundColor: colors.surface }]}>
-          <Icon source="alert-circle-outline" size={24} color={colors.signalText} />
-        </View>
-        <Text variant="titleLarge" accessibilityRole="header">
-          Connexion bancaire non finalisée
-        </Text>
-        <Text variant="bodyMedium">{message}</Text>
-        <AppButton icon="arrow-left" onPress={() => router.replace('/bank')}>
-          Revenir à la banque
-        </AppButton>
-      </Panel>
-    </Screen>
-  );
-}
-
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-  centerText: { textAlign: 'center', maxWidth: 420 },
-  statusIcon: { width: 48, height: 48, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  panel: { width: '100%', maxWidth: 440, padding: 24, gap: 16 },
+  content: { alignItems: 'center', gap: 8 },
+  centerText: { textAlign: 'center' },
+  badge: { width: 48, height: 48, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
 });

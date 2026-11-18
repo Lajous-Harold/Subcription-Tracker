@@ -9,11 +9,13 @@ import { ErrorState, Loading, Panel, Screen } from '@/components/ui';
 import { AnalyzedAccountsPanel, type AccountToggle } from '@/features/bank/AnalyzedAccountsPanel';
 import { BankConnectPanel } from '@/features/bank/BankConnectPanel';
 import { BankStatusPanel } from '@/features/bank/BankStatusPanel';
+import { isDemoAccount } from '@/features/bank/bank-display';
 import { DemoDataActions } from '@/features/bank/DemoDataActions';
 import { useBankLink } from '@/features/bank/useBankLink';
 import { api } from '@/lib/api';
 import { DEMO_ENABLED } from '@/lib/config';
 import { ApiError } from '@/lib/http';
+import { useLayoutMode } from '@/lib/layout';
 import { openPowensFlow } from '@/lib/powens-connect';
 import { invalidateBankData, queryClient, queryKeys } from '@/lib/query';
 import { useBrand } from '@/lib/theme';
@@ -32,6 +34,7 @@ function PowensNotConfiguredNotice() {
 
 export default function BankScreen() {
   const toast = useToast();
+  const isWide = useLayoutMode() === 'wide';
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [pulling, setPulling] = useState(false);
   const { bankLinkQuery, bankLink, linkedBank, syncing } = useBankLink();
@@ -79,6 +82,7 @@ export default function BankScreen() {
   const notConfigured = powensFlow.error instanceof ApiError && powensFlow.error.code === 'POWENS_NOT_CONFIGURED';
   // Les données de démonstration créent des comptes sans banque liée : ils restent pilotables ici.
   const showAccounts = linkedBank !== null || accountList.length > 0;
+  const demoDataLoaded = accountList.some(isDemoAccount);
 
   // L'indicateur ne suit que le geste : le bouton « Synchroniser maintenant » a déjà son propre chargement.
   const pullToRefresh = () => {
@@ -92,38 +96,49 @@ export default function BankScreen() {
     <Screen refreshing={pulling} onRefresh={pullToRefresh}>
       {notConfigured ? <PowensNotConfiguredNotice /> : null}
 
-      {linkedBank ? (
-        <BankStatusPanel
-          link={linkedBank}
-          onSync={() => sync.mutate()}
-          syncPending={sync.isPending}
-          onReconnect={() => powensFlow.mutate('reconnect')}
-          reconnectPending={powensFlow.isPending}
-        />
-      ) : (
-        <BankConnectPanel
-          previouslyDisconnected={bankLink?.status === 'disconnected'}
-          onConnect={() => powensFlow.mutate('connect')}
-          pending={powensFlow.isPending}
-        />
-      )}
+      <View style={isWide ? styles.wideColumns : styles.columns}>
+        <View style={isWide ? styles.wideColumn : null}>
+          {linkedBank ? (
+            <BankStatusPanel
+              link={linkedBank}
+              onSync={() => sync.mutate()}
+              syncPending={sync.isPending}
+              onReconnect={() => powensFlow.mutate('reconnect')}
+              reconnectPending={powensFlow.isPending}
+            />
+          ) : (
+            <BankConnectPanel
+              previouslyDisconnected={bankLink?.status === 'disconnected'}
+              onConnect={() => powensFlow.mutate('connect')}
+              pending={powensFlow.isPending}
+            />
+          )}
+        </View>
 
-      {showAccounts ? (
-        <AnalyzedAccountsPanel
-          accounts={accountList}
-          loading={accounts.isLoading}
-          error={accounts.error}
-          pendingToggle={updateAccount.isPending ? updateAccount.variables : undefined}
-          onToggle={(toggle) => updateAccount.mutate(toggle)}
-          onManageSharing={linkedBank ? () => powensFlow.mutate('manage') : undefined}
-          manageDisabled={powensFlow.isPending}
-        />
-      ) : null}
+        {showAccounts ? (
+          <View style={isWide ? styles.wideColumn : null}>
+            <AnalyzedAccountsPanel
+              accounts={accountList}
+              loading={accounts.isLoading}
+              error={accounts.error}
+              pendingToggle={updateAccount.isPending ? updateAccount.variables : undefined}
+              onToggle={(toggle) => updateAccount.mutate(toggle)}
+              onManageSharing={linkedBank ? () => powensFlow.mutate('manage') : undefined}
+              manageDisabled={powensFlow.isPending}
+            />
+          </View>
+        ) : null}
+      </View>
 
-      <View style={styles.secondaryActions}>
-        {DEMO_ENABLED ? <DemoDataActions /> : null}
+      <View style={[styles.secondaryActions, isWide ? styles.wideSecondaryActions : null]}>
+        {DEMO_ENABLED && accounts.isSuccess ? <DemoDataActions demoDataLoaded={demoDataLoaded} wide={isWide} /> : null}
         {linkedBank ? (
-          <AppButton variant="destructiveGhost" icon="link-off" onPress={() => setUnlinkOpen(true)}>
+          <AppButton
+            variant="destructiveGhost"
+            icon="link-off"
+            onPress={() => setUnlinkOpen(true)}
+            style={isWide ? styles.wideUnlink : null}
+          >
             Déconnecter la banque
           </AppButton>
         ) : null}
@@ -146,5 +161,10 @@ export default function BankScreen() {
 const styles = StyleSheet.create({
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 16 },
   noticeText: { flex: 1 },
+  columns: { gap: 16 },
+  wideColumns: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  wideColumn: { flex: 1, minWidth: 0, gap: 16 },
   secondaryActions: { gap: 8, marginTop: 8 },
+  wideSecondaryActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 16 },
+  wideUnlink: { marginLeft: 'auto' },
 });

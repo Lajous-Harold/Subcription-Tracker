@@ -3,12 +3,50 @@ import * as Linking from 'expo-linking';
 import type { BankLink, ConnectFlow } from '@subtracker/contracts';
 import { api } from './api';
 import { PLATFORM } from './config';
+import { ApiError } from './http';
 
 export interface CallbackParams {
   state?: string;
   connection_id?: string;
   error?: string;
   error_description?: string;
+}
+
+const CONNECTION_FAILED = 'La connexion à votre banque n’a pas abouti. Relancez-la depuis l’écran Banque.';
+
+/** Textes affichés selon le code renvoyé par l'API (`WEBVIEW_*` reprend l'erreur transmise par la Webview Powens). */
+const USER_MESSAGES_BY_CODE: Record<string, string> = {
+  INVALID_STATE: 'Ce lien de connexion a expiré ou a déjà servi. Relancez la connexion depuis l’écran Banque.',
+  WEBVIEW_ACCESS_DENIED: 'Vous avez interrompu la connexion à votre banque. Relancez-la depuis l’écran Banque.',
+  WEBVIEW_TOS_DECLINED:
+    'La connexion n’a pas été établie, faute d’accepter les conditions de Powens. Relancez-la depuis l’écran Banque.',
+  WEBVIEW_SERVER_ERROR: 'Powens rencontre un problème. Réessayez dans quelques minutes depuis l’écran Banque.',
+};
+
+const MISSING_STATE = 'MISSING_STATE';
+
+/**
+ * Échec de la finalisation, avec un texte destiné à l'utilisateur. La cause technique (code de l'API, explication
+ * de Powens) reste dans `reason` et `cause` pour le diagnostic, sans être affichée.
+ */
+export class PowensConnectError extends Error {
+  constructor(
+    public readonly reason: string,
+    options?: { cause?: unknown },
+  ) {
+    super(USER_MESSAGES_BY_CODE[reason] ?? CONNECTION_FAILED, options);
+    this.name = 'PowensConnectError';
+  }
+}
+
+/**
+ * Seuls les refus de l'API sur le parcours (4xx) sont reformulés : une panne réseau ou une session expirée
+ * garde le message générique de `errorMessage`, qui dit déjà quoi faire.
+ */
+function toUserFacingError(error: unknown): unknown {
+  const isConnectRefusal =
+    error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401;
+  return isConnectRefusal ? new PowensConnectError(error.code, { cause: error }) : error;
 }
 
 /**
@@ -20,15 +58,19 @@ const completionsByState = new Map<string, Promise<BankLink>>();
 
 export function completeConnectCallback(params: CallbackParams): Promise<BankLink> {
   const { state } = params;
-  if (!state) return Promise.reject(new Error('Retour de connexion incomplet (state manquant)'));
+  if (!state) return Promise.reject(new PowensConnectError(MISSING_STATE));
   const existing = completionsByState.get(state);
   if (existing) return existing;
-  const completion = api.completeConnectSession({
-    state,
-    connectionId: params.connection_id,
-    error: params.error,
-    errorDescription: params.error_description,
-  });
+  const completion = api
+    .completeConnectSession({
+      state,
+      connectionId: params.connection_id,
+      error: params.error,
+      errorDescription: params.error_description,
+    })
+    .catch((error: unknown) => {
+      throw toUserFacingError(error);
+    });
   completionsByState.set(state, completion);
   completion.catch(() => completionsByState.delete(state));
   return completion;

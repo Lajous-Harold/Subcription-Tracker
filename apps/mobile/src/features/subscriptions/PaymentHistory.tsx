@@ -6,7 +6,6 @@ import { describePaymentHistory, latestPayments, paymentBars } from './presentat
 
 const CHART_HEIGHT = 56;
 const PAST_BAR_OPACITY = 0.3;
-const BAR_MAX_WIDTH = 56;
 
 /** Le plus récent en cobalt plein, les précédents en cobalt atténué. */
 export function PaymentHistory({ payments }: { payments: Payment[] }) {
@@ -49,7 +48,7 @@ export function PaymentHistory({ payments }: { payments: Payment[] }) {
 const historyStyles = StyleSheet.create({
   container: { gap: 6 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: CHART_HEIGHT },
-  bar: { flex: 1, maxWidth: BAR_MAX_WIDTH, borderRadius: 6 },
+  bar: { flex: 1, borderRadius: 6 },
   labels: { flexDirection: 'row', gap: 8 },
-  label: { flex: 1, maxWidth: BAR_MAX_WIDTH, textAlign: 'center', fontSize: 11 },
+  label: { flex: 1, textAlign: 'center', fontSize: 11 },
 });

@@ -4,6 +4,7 @@ import type { BankLink } from '@subtracker/contracts';
 import { AppButton } from '@/components/AppButton';
 import { Muted, Panel } from '@/components/ui';
 import { BANK_STATUS_LABELS, formatDateTime, needsBankReconnection } from '@/lib/format';
+import { useLayoutMode } from '@/lib/layout';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
 import { useMinuteClock } from '@/lib/useMinuteClock';
 import { bankNotice, formatConsentRemaining, formatSyncAge, isSyncing, type BankNotice } from './bank-display';
@@ -106,6 +107,7 @@ export function BankStatusPanel({
   const notice = bankNotice(link);
   const now = useMinuteClock();
   const syncAge = syncing ? 'en cours…' : formatSyncAge(link.lastSyncAt, now);
+  const buttonStyle = useLayoutMode() === 'wide' ? styles.wideButton : null;
 
   return (
     <Panel>
@@ -138,7 +140,7 @@ export function BankStatusPanel({
       </View>
 
       {reconnectionNeeded ? (
-        <AppButton icon="refresh" onPress={onReconnect} loading={reconnectPending}>
+        <AppButton icon="refresh" onPress={onReconnect} loading={reconnectPending} style={buttonStyle}>
           Reconnecter ma banque
         </AppButton>
       ) : null}
@@ -148,6 +150,7 @@ export function BankStatusPanel({
         onPress={onSync}
         loading={syncPending}
         disabled={syncPending || syncing}
+        style={buttonStyle}
       >
         {syncing ? 'Synchronisation en cours' : 'Synchroniser maintenant'}
       </AppButton>
@@ -165,4 +168,5 @@ const styles = StyleSheet.create({
   tile: { flex: 1, minWidth: 0, borderRadius: radii.control, padding: 12, gap: 2 },
   notice: { flexDirection: 'row', gap: 10, borderRadius: radii.control, borderWidth: 1, padding: 12 },
   noticeText: { flex: 1 },
+  wideButton: { alignSelf: 'flex-start' },
 });

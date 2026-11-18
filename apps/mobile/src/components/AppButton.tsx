@@ -15,8 +15,11 @@ import { radii, useAppTheme, type BrandColors } from '@/lib/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/** `destructive` porte un contour rouge ; `destructiveGhost` n'en garde que le texte (dialogues, actions discrètes). */
-export type AppButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'destructiveGhost';
+/**
+ * `ink` est un plein neutre, inversé en sombre : il mène hors de l'app (page officielle) sans se confondre avec
+ * l'action cobalt. `destructive` porte un contour rouge ; `destructiveGhost` n'en garde que le texte.
+ */
+export type AppButtonVariant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'destructive' | 'destructiveGhost';
 
 type InteractionState = 'idle' | 'hovered' | 'pressed';
 
@@ -41,6 +44,8 @@ function variantLook(variant: AppButtonVariant, colors: BrandColors, dark: boole
         text: colors.onActionFill,
         overlay: darkenOverlay,
       };
+    case 'ink':
+      return { background: colors.ink, border: colors.ink, text: colors.surface, overlay: darkenOverlay };
     case 'secondary':
       return { background: colors.surface, border: colors.controlBorder, text: colors.ink, overlay: neutralOverlay };
     case 'ghost':
@@ -92,8 +97,6 @@ interface AppButtonProps extends Omit<PressableProps, 'children' | 'style'> {
   size?: keyof typeof BUTTON_HEIGHTS;
   icon?: IconName;
   iconPosition?: 'start' | 'end';
-  /** Raccourci clavier affiché en retrait après le libellé (web large). */
-  shortcutHint?: string;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -104,7 +107,6 @@ export function AppButton({
   size = 'medium',
   icon,
   iconPosition = 'start',
-  shortcutHint,
   loading = false,
   disabled,
   style,
@@ -151,7 +153,6 @@ export function AppButton({
       {iconPosition === 'start' ? iconNode : null}
       <Text style={[styles.label, { color: look.text, fontFamily: fonts.semiBold, fontSize }]} numberOfLines={2}>
         {children}
-        {shortcutHint ? <Text style={styles.shortcutHint}>{`  ${shortcutHint}`}</Text> : null}
       </Text>
       {iconPosition === 'end' ? iconNode : null}
     </Pressable>
@@ -218,7 +219,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   label: { textAlign: 'center', letterSpacing: 0, flexShrink: 1 },
-  shortcutHint: { opacity: 0.7 },
   pressed: { transform: [{ scale: PRESSED_SCALE }] },
   disabled: { opacity: DISABLED_OPACITY },
   round: {

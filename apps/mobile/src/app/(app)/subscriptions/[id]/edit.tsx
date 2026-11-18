@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import type { UpdateSubscriptionBody } from '@subtracker/contracts';
 import { ErrorState, FormColumn, Loading, Screen } from '@/components/ui';
 import { useToast } from '@/components/toast';
+import { leaveTo } from '@/features/subscriptions/navigation';
 import { SubscriptionForm, type SubscriptionFormValues } from '@/features/subscriptions/SubscriptionForm';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/http';
@@ -38,7 +39,7 @@ export default function EditSubscriptionScreen() {
     onSuccess: () => {
       invalidateSubscriptionData(id);
       toast.show('Modifications enregistrées');
-      router.back();
+      leaveTo(`/subscriptions/${id}`);
     },
   });
 

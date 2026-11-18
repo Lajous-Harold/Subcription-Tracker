@@ -1,11 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { DashboardSummary } from '@subtracker/contracts';
 import { Muted, Panel, ServiceMonogram } from '@/components/ui';
-import { DataTable, type TableColumn } from '@/components/DataTable';
-import { formatCalendarDay, formatDate, formatMoney, formatShortDate } from '@/lib/format';
-import type { LayoutMode } from '@/lib/layout';
+import { formatCalendarDay, formatDate, formatMoney } from '@/lib/format';
 import { tabularNums, useBrand } from '@/lib/theme';
 
 type UpcomingPayment = DashboardSummary['upcoming'][number];
@@ -19,96 +16,63 @@ function describeForScreenReader(payment: UpcomingPayment): string {
   return `${payment.label}, ${formatMoney(payment.amountCents, payment.currency)}, ${when}`;
 }
 
-function Amount({ payment }: { payment: UpcomingPayment }) {
+/** Jour sur deux chiffres, comme un calendrier : les colonnes de dates restent alignées. */
+function CalendarDay({ date }: { date: string }) {
   const { colors, fonts } = useBrand();
+  const { day, month } = formatCalendarDay(date);
   return (
-    <Text style={[tabularNums, styles.amount, { fontFamily: fonts.displayBold, color: colors.ink }]}>
-      {formatMoney(payment.amountCents, payment.currency)}
-    </Text>
-  );
-}
-
-function UpcomingList({ upcoming }: { upcoming: UpcomingPayment[] }) {
-  const { colors, fonts } = useBrand();
-  return (
-    <View>
-      {upcoming.map((payment) => {
-        const { day, month } = formatCalendarDay(payment.date);
-        return (
-          <Pressable
-            key={`${payment.subscriptionId}-${payment.date}`}
-            onPress={() => openSubscription(payment)}
-            accessibilityRole="link"
-            accessibilityLabel={describeForScreenReader(payment)}
-            style={({ pressed }) => [styles.listRow, { borderTopColor: colors.tile }, pressed && styles.pressed]}
-          >
-            <View style={styles.dateColumn}>
-              <Text style={[tabularNums, styles.day, { fontFamily: fonts.displayBold, color: colors.ink }]}>{day}</Text>
-              <Muted>{month}</Muted>
-            </View>
-            <ServiceMonogram name={payment.label} />
-            <View style={styles.grow}>
-              <Text variant="titleMedium" numberOfLines={1}>
-                {payment.label}
-              </Text>
-              {isDateEstimated(payment) ? <Muted>date estimée</Muted> : null}
-            </View>
-            <Amount payment={payment} />
-          </Pressable>
-        );
-      })}
+    <View style={styles.dateColumn}>
+      <Text style={[tabularNums, styles.day, { fontFamily: fonts.displayBold, color: colors.ink }]}>
+        {day.padStart(2, '0')}
+      </Text>
+      <Text style={[styles.month, { fontFamily: fonts.regular, color: colors.inkMuted }]}>{month}</Text>
     </View>
   );
 }
 
-const TABLE_COLUMNS: TableColumn<UpcomingPayment>[] = [
-  {
-    title: 'Date',
-    flex: 1.4,
-    render: (payment) => (
-      <Text variant="bodyMedium" style={tabularNums}>
-        {formatShortDate(payment.date)}
-        {isDateEstimated(payment) ? <Muted> (estimée)</Muted> : null}
-      </Text>
-    ),
-  },
-  {
-    title: 'Service',
-    flex: 3,
-    render: (payment) => (
-      <View style={styles.serviceCell}>
-        <ServiceMonogram name={payment.label} size={32} />
-        <Text variant="titleSmall" numberOfLines={1} style={styles.grow}>
+function UpcomingRow({ payment }: { payment: UpcomingPayment }) {
+  const { colors, fonts } = useBrand();
+  return (
+    <Pressable
+      onPress={() => openSubscription(payment)}
+      accessibilityRole="link"
+      accessibilityLabel={describeForScreenReader(payment)}
+      style={({ pressed }) => [styles.row, { borderTopColor: colors.tile }, pressed && styles.pressed]}
+    >
+      <CalendarDay date={payment.date} />
+      <ServiceMonogram name={payment.label} />
+      <View style={styles.grow}>
+        <Text numberOfLines={2} style={[styles.label, { fontFamily: fonts.semiBold, color: colors.ink }]}>
           {payment.label}
         </Text>
+        {isDateEstimated(payment) ? <Muted>date estimée</Muted> : null}
       </View>
-    ),
-  },
-  { title: 'Montant', flex: 1.2, align: 'right', render: (payment) => <Amount payment={payment} /> },
-];
+      <Text style={[tabularNums, styles.amount, { fontFamily: fonts.bold, color: colors.ink }]}>
+        {formatMoney(payment.amountCents, payment.currency)}
+      </Text>
+    </Pressable>
+  );
+}
 
-export function UpcomingPayments({ upcoming, layoutMode }: { upcoming: UpcomingPayment[]; layoutMode: LayoutMode }) {
+/** Échéances de l'accueil compact ; en mode large, la colonne « Prochaine échéance » du tableau en tient lieu. */
+export function UpcomingPayments({ upcoming }: { upcoming: UpcomingPayment[] }) {
+  const { colors, fonts } = useBrand();
   return (
     <Panel style={styles.panel}>
       <View style={styles.header}>
-        <Text variant="titleLarge" accessibilityRole="header">
+        <Text accessibilityRole="header" style={[styles.title, { fontFamily: fonts.displayBold, color: colors.ink }]}>
           Prochains prélèvements
         </Text>
-        <Muted>30 jours</Muted>
+        <Text style={[styles.period, { fontFamily: fonts.regular, color: colors.inkMuted }]}>30 jours</Text>
       </View>
       {upcoming.length === 0 ? (
         <Muted style={styles.empty}>Aucune échéance connue dans les 30 prochains jours.</Muted>
-      ) : layoutMode === 'wide' ? (
-        <DataTable
-          columns={TABLE_COLUMNS}
-          rows={upcoming}
-          rowKey={(payment) => `${payment.subscriptionId}-${payment.date}`}
-          rowLabel={describeForScreenReader}
-          onPressRow={openSubscription}
-          minWidth={420}
-        />
       ) : (
-        <UpcomingList upcoming={upcoming} />
+        <View>
+          {upcoming.map((payment) => (
+            <UpcomingRow key={`${payment.subscriptionId}-${payment.date}`} payment={payment} />
+          ))}
+        </View>
       )}
     </Panel>
   );
@@ -117,19 +81,15 @@ export function UpcomingPayments({ upcoming, layoutMode }: { upcoming: UpcomingP
 const styles = StyleSheet.create({
   panel: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8, gap: 8 },
   header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  title: { flexShrink: 1, fontSize: 18, lineHeight: 24 },
+  period: { flexShrink: 0, fontSize: 13, lineHeight: 18 },
   empty: { paddingBottom: 12 },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    minHeight: 56,
-    borderTopWidth: 1,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, minHeight: 56, borderTopWidth: 1 },
   dateColumn: { width: 44, alignItems: 'center' },
   day: { fontSize: 18, lineHeight: 20 },
+  month: { fontSize: 12, lineHeight: 13 },
   grow: { flex: 1, gap: 2 },
-  serviceCell: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch' },
-  amount: { fontSize: 16 },
+  label: { fontSize: 15, lineHeight: 20 },
+  amount: { fontSize: 15 },
   pressed: { opacity: 0.6 },
 });

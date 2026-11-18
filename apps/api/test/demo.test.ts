@@ -39,6 +39,17 @@ describe('données de démonstration : /api/demo/data', () => {
     expect(accounts.body.items[0].numberLast4).toBeNull();
   });
 
+  it('le compte de démonstration a pour provenance « fixture »', async () => {
+    const app = testApp();
+    const user = await registerUser(app);
+    await request(app).post('/api/demo/data').set(user.auth).expect(200);
+
+    const accounts = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
+
+    expect(accounts.body.items).toHaveLength(1);
+    expect(accounts.body.items[0].source).toBe('fixture');
+  });
+
   it('en production, la route est absente par défaut', async () => {
     const prod = testApp({ APP_ENV: 'production' });
     const user = await registerUser(prod);

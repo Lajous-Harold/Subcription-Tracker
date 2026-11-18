@@ -7,6 +7,7 @@ import {
   bankNotice,
   formatConsentRemaining,
   formatSyncAge,
+  isDemoAccount,
 } from '../bank-display';
 
 const NOW = Date.parse('2026-11-18T12:00:00Z');
@@ -27,6 +28,7 @@ const link = (overrides: Partial<BankLink>): BankLink => ({
 
 const account = (overrides: Partial<BankAccount>): BankAccount => ({
   id: 'account-1',
+  source: 'powens',
   name: 'Compte courant',
   type: 'checking',
   numberLast4: '4821',
@@ -89,6 +91,18 @@ describe('bank-display', () => {
 
   it('dit qu’un compte non partagé n’a pas d’opérations importées', () => {
     expect(accountDescription(account({ sharedWithApp: false, transactionCount: 0 }))).toBe('••4821 · non partagé');
+  });
+
+  it('dit qu’un compte décoché est ignoré plutôt que de compter ses opérations', () => {
+    expect(accountDescription(account({ name: 'Livret A', type: 'savings', numberLast4: null, analyzed: false }))).toBe(
+      'épargne · ignoré',
+    );
+    expect(accountDescription(account({ sharedWithApp: false, analyzed: false }))).toBe('••4821 · non partagé');
+  });
+
+  it('reconnaît le compte de démonstration à sa provenance, quel que soit son nom', () => {
+    expect(isDemoAccount(account({ source: 'fixture' }))).toBe(true);
+    expect(isDemoAccount(account({ name: 'Compte de démonstration' }))).toBe(false);
   });
 
   it('résume la banque liée par son état et l’âge de la dernière synchronisation', () => {

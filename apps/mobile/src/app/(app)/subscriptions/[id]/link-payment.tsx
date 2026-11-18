@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
@@ -7,8 +7,9 @@ import type { Transaction } from '@subtracker/contracts';
 import { AppButton } from '@/components/AppButton';
 import { useToast } from '@/components/toast';
 import { EmptyState, ErrorState, FormColumn, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
+import { leaveTo } from '@/features/subscriptions/navigation';
 import { api } from '@/lib/api';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatMediumDate, formatMoney } from '@/lib/format';
 import { invalidatePaymentData, queryClient, queryKeys } from '@/lib/query';
 import { tabularNums, useBrand } from '@/lib/theme';
 
@@ -25,7 +26,7 @@ function TransactionRow({
   const alreadyLinked = Boolean(transaction.subscriptionId);
   const amount = formatMoney(Math.abs(transaction.amountCents), transaction.currency);
   const description = [
-    formatDate(transaction.date),
+    formatMediumDate(transaction.date),
     alreadyLinked ? 'déjà rattachée' : null,
     transaction.coming ? 'à venir' : null,
   ]
@@ -46,9 +47,7 @@ function TransactionRow({
       ]}
     >
       <View style={linkStyles.rowText}>
-        <Text variant="bodyLarge" numberOfLines={2}>
-          {transaction.label}
-        </Text>
+        <Text variant="bodyLarge">{transaction.label}</Text>
         <Muted>{description}</Muted>
       </View>
       <Text style={[linkStyles.amount, tabularNums, { fontFamily: brand.fonts.displayBold }]}>{amount}</Text>
@@ -75,7 +74,7 @@ export default function LinkPaymentScreen() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.allTransactions });
       invalidatePaymentData(id);
       toast.show('Opération rattachée');
-      router.back();
+      leaveTo(`/subscriptions/${id}`);
     },
     onError: toast.showError,
   });

@@ -13,7 +13,7 @@ import { ActivityIndicator, HelperText, Text } from 'react-native-paper';
 import type { ConfidenceLevel, Origin } from '@subtracker/contracts';
 import { initialOf, ORIGIN_HELP, ORIGIN_LABELS } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
-import { useLayoutMode } from '@/lib/layout';
+import { useLayoutMode, useWidePageGutter } from '@/lib/layout';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
 import { AppButton } from './AppButton';
 
@@ -28,9 +28,10 @@ export function Screen({
   ...props
 }: ScrollViewProps & { children: ReactNode; refreshing?: boolean; onRefresh?: () => void }) {
   const isWide = useLayoutMode() === 'wide';
+  const wideGutter = useWidePageGutter();
   return (
     <ScrollView
-      contentContainerStyle={isWide ? styles.wideScreen : styles.screen}
+      contentContainerStyle={isWide ? [styles.wideScreen, { paddingHorizontal: wideGutter }] : styles.screen}
       keyboardShouldPersistTaps="handled"
       refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} /> : undefined}
       {...props}
@@ -40,9 +41,10 @@ export function Screen({
   );
 }
 
-/** Colonne étroite des formulaires, centrée dans `Screen` quel que soit le mode. */
+/** Colonne étroite des formulaires : alignée sur le titre de page en mode large, centrée en compact. */
 export function FormColumn({ children }: { children: ReactNode }) {
-  return <View style={styles.formColumn}>{children}</View>;
+  const isWide = useLayoutMode() === 'wide';
+  return <View style={[styles.formColumn, { alignSelf: isWide ? 'flex-start' : 'center' }]}>{children}</View>;
 }
 
 export function Loading() {
@@ -114,7 +116,7 @@ export function Panel({
 
 /** La provenance se lit à la forme, pas seulement à la couleur : plein, contour, pointillé. */
 export function OriginChip({ origin, value, inverse }: { origin: Origin; value?: string; inverse?: boolean }) {
-  const { colors } = useBrand();
+  const { colors, fonts } = useBrand();
   const strong = inverse ? colors.hero.text : colors.ink;
   const onStrong = inverse ? colors.hero.background : colors.surface;
   const muted = inverse ? colors.hero.muted : colors.inkMuted;
@@ -130,25 +132,60 @@ export function OriginChip({ origin, value, inverse }: { origin: Origin; value?:
       accessible
       accessibilityLabel={`${label} : ${ORIGIN_HELP[origin]}`}
     >
-      <Text variant="labelMedium" style={[tabularNums, { color: shape[origin].text }]}>
+      <Text style={[tabularNums, styles.originChipText, { fontFamily: fonts.semiBold, color: shape[origin].text }]}>
         {label}
       </Text>
     </View>
   );
 }
 
-const CONFIDENCE_SEGMENTS: Record<ConfidenceLevel, number> = { high: 3, medium: 2, low: 1 };
-const CONFIDENCE_LEVEL_LABELS: Record<ConfidenceLevel, string> = { high: 'Élevée', medium: 'Moyenne', low: 'Faible' };
+/**
+ * Qualificatif « estimé » accolé à un libellé (« Sur 12 mois estimé ») : plus discret qu'`OriginChip`,
+ * il garde le pointillé de la provenance estimée.
+ */
+export function EstimateTag({ inverse }: { inverse?: boolean }) {
+  const { colors, fonts } = useBrand();
+  const color = inverse ? colors.hero.muted : colors.inkMuted;
+  return (
+    <View
+      style={[styles.estimateTag, { borderColor: color }]}
+      accessible
+      accessibilityLabel={`${ORIGIN_LABELS.estimated} : ${ORIGIN_HELP.estimated}`}
+    >
+      <Text style={[styles.estimateTagText, { fontFamily: fonts.regular, color }]}>
+        {ORIGIN_LABELS.estimated.toLocaleLowerCase('fr-FR')}
+      </Text>
+    </View>
+  );
+}
 
-export function ConfidenceMeter({ level, confidence }: { level: ConfidenceLevel; confidence: number }) {
-  const { colors } = useBrand();
+const CONFIDENCE_SEGMENTS: Record<ConfidenceLevel, number> = { high: 3, medium: 2, low: 1 };
+const CONFIDENCE_LEVEL_WORDS: Record<ConfidenceLevel, string> = { high: 'élevée', medium: 'moyenne', low: 'faible' };
+
+const capitalize = (word: string) => `${word.charAt(0).toLocaleUpperCase('fr-FR')}${word.slice(1)}`;
+
+/**
+ * `emphasized` : libellé complet et appuyé, quand la confiance est le seul indice de fiabilité lu avant de décider
+ * (carte à glisser).
+ */
+export function ConfidenceMeter({
+  level,
+  confidence,
+  emphasized = false,
+}: {
+  level: ConfidenceLevel;
+  confidence: number;
+  emphasized?: boolean;
+}) {
+  const { colors, fonts } = useBrand();
   const filledSegments = CONFIDENCE_SEGMENTS[level];
+  const levelWord = CONFIDENCE_LEVEL_WORDS[level];
   const percent = `${Math.round(confidence * 100)} %`;
   return (
     <View
-      style={styles.row}
+      style={[styles.row, emphasized && styles.emphasizedMeter]}
       accessible
-      accessibilityLabel={`Confiance ${CONFIDENCE_LEVEL_LABELS[level].toLowerCase()} : ${percent}`}
+      accessibilityLabel={`Confiance ${levelWord} : ${percent}`}
     >
       <View style={styles.meterTrack}>
         {[1, 2, 3].map((segment) => (
@@ -161,7 +198,13 @@ export function ConfidenceMeter({ level, confidence }: { level: ConfidenceLevel;
           />
         ))}
       </View>
-      <Text variant="bodySmall" style={tabularNums}>{`${CONFIDENCE_LEVEL_LABELS[level]} · ${percent}`}</Text>
+      {emphasized ? (
+        <Text style={[tabularNums, styles.emphasizedMeterText, { fontFamily: fonts.semiBold, color: colors.ink }]}>
+          {`Confiance ${levelWord} · ${percent}`}
+        </Text>
+      ) : (
+        <Text variant="bodySmall" style={tabularNums}>{`${capitalize(levelWord)} · ${percent}`}</Text>
+      )}
     </View>
   );
 }
@@ -181,14 +224,6 @@ export function ServiceMonogram({ name, size = 36 }: { name: string; size?: numb
         {initialOf(name)}
       </Text>
     </View>
-  );
-}
-
-export function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <Text variant="titleLarge" accessibilityRole="header" style={styles.section}>
-      {children}
-    </Text>
   );
 }
 
@@ -212,10 +247,10 @@ export function Muted({ children, style }: { children: ReactNode; style?: StyleP
 export const styles = StyleSheet.create({
   screen: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 96, alignItems: 'center' },
   inner: { width: '100%', maxWidth: MAX_WIDTH, gap: 16 },
-  /** Aligné sur le titre de page de `TabHeader`, à 32 px de la barre latérale. */
-  wideScreen: { paddingHorizontal: 32, paddingTop: 16, paddingBottom: 96, alignItems: 'flex-start' },
+  /** Marge latérale donnée par `useWidePageGutter`, la même que celle du titre de `PageHeader`. */
+  wideScreen: { paddingTop: 16, paddingBottom: 96, alignItems: 'flex-start' },
   wideInner: { width: '100%', maxWidth: WIDE_MAX_WIDTH, gap: 16 },
-  formColumn: { width: '100%', maxWidth: FORM_MAX_WIDTH, alignSelf: 'center', gap: 16 },
+  formColumn: { width: '100%', maxWidth: FORM_MAX_WIDTH, gap: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   centerText: { textAlign: 'center' },
   spaced: { marginTop: 12 },
@@ -227,14 +262,24 @@ export const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: radii.pill,
     borderWidth: 1.5,
-    paddingHorizontal: 9,
-    paddingVertical: 2,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
   },
+  originChipText: { fontSize: 13, lineHeight: 16 },
+  estimateTag: {
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+  },
+  estimateTagText: { fontSize: 12, lineHeight: 16 },
+  emphasizedMeter: { gap: 10 },
+  emphasizedMeterText: { fontSize: 14, lineHeight: 20 },
   meterTrack: { flexDirection: 'row', gap: 3 },
   meterSegment: { width: 18, height: 8, borderRadius: 4 },
   monogram: { alignItems: 'center', justifyContent: 'center' },
   dialog: { maxWidth: 480, alignSelf: 'center', width: '92%', borderRadius: radii.panel },
-  section: { marginTop: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 });
 
