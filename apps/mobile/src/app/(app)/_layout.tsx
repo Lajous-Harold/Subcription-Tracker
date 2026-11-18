@@ -1,10 +1,16 @@
-import { Stack } from 'expo-router';
+import { Stack, type NativeStackHeaderProps } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { Sidebar } from '@/components/navigation/Sidebar';
+import { StackHeader } from '@/components/navigation/StackHeader';
 import { useLayoutMode } from '@/lib/layout';
 import { useBrand } from '@/lib/theme';
 
+const renderStackHeader = (props: NativeStackHeaderProps) => <StackHeader {...props} />;
+
 /**
+ * Les écrans de pile posent leur titre et leurs actions par `<Stack.Screen options={{ title, headerRight }} />` ;
+ * `headerTitle: ''` masque le titre quand l'écran affiche le sien dans son contenu.
+ *
  * En mode large, la barre latérale entoure la pile pour rester visible sur les écrans de détail.
  * L'arbre garde la même forme dans les deux modes : franchir le seuil ne remonte pas la pile.
  */
@@ -17,11 +23,7 @@ export default function AppLayout() {
       <View style={styles.content}>
         <Stack
           screenOptions={{
-            headerBackTitle: 'Retour',
-            headerTintColor: brand.colors.ink,
-            headerStyle: { backgroundColor: brand.colors.surface },
-            headerTitleStyle: { fontFamily: brand.fonts.displayBold, fontSize: 18, color: brand.colors.ink },
-            headerBackTitleStyle: { fontFamily: brand.fonts.medium },
+            header: renderStackHeader,
             contentStyle: { backgroundColor: brand.colors.background },
           }}
         >

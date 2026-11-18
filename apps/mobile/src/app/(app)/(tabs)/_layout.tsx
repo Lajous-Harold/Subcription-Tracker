@@ -1,12 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BottomTabBar, Tabs, type BottomTabBarProps, type BottomTabHeaderProps } from 'expo-router/js-tabs';
+import { StyleSheet, Text, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AccountAvatarButton } from '@/components/AccountAvatar';
 import { TabHeader } from '@/components/navigation/TabHeader';
 import { usePendingReviewCount } from '@/components/navigation/usePendingReviewCount';
 import { Wordmark } from '@/components/Wordmark';
 import { useLayoutMode } from '@/lib/layout';
-import { useBrand } from '@/lib/theme';
+import { fontFamilies, useBrand } from '@/lib/theme';
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -20,11 +21,23 @@ function tabIcon(name: IconName) {
   return TabIcon;
 }
 
+/** Seul l'onglet actif passe en semi-gras : la graisse double la couleur pour distinguer l'état. */
+function renderTabLabel({ focused, color, children }: { focused: boolean; color: ColorValue; children: string }) {
+  return (
+    <Text
+      numberOfLines={1}
+      style={[styles.tabLabel, { color, fontFamily: focused ? fontFamilies.semiBold : fontFamilies.regular }]}
+    >
+      {children}
+    </Text>
+  );
+}
+
 const renderBottomTabBar = (props: BottomTabBarProps) => <BottomTabBar {...props} />;
 /** En mode large, la barre latérale est rendue par la pile parente : les onglets n'ont plus de barre. */
 const renderNoTabBar = () => null;
 const renderTabHeader = (props: BottomTabHeaderProps) => <TabHeader {...props} />;
-const renderWordmark = () => <Wordmark />;
+const renderWordmark = () => <Wordmark showsMark={false} />;
 const renderAccountAvatar = () => <AccountAvatarButton />;
 
 /**
@@ -45,9 +58,9 @@ export default function TabsLayout() {
         header: renderTabHeader,
         headerRight: isWide || route.name === 'account' ? undefined : renderAccountAvatar,
         tabBarLabelPosition: 'below-icon',
+        tabBarLabel: renderTabLabel,
         tabBarActiveTintColor: brand.colors.action,
         tabBarInactiveTintColor: brand.colors.inkMuted,
-        tabBarLabelStyle: { fontFamily: brand.fonts.semiBold, fontSize: 12, lineHeight: 16 },
         tabBarStyle: {
           height: TAB_BAR_HEIGHT + insets.bottom,
           backgroundColor: brand.colors.surface,
@@ -57,6 +70,7 @@ export default function TabsLayout() {
           backgroundColor: brand.colors.signal,
           color: brand.colors.onSignal,
           fontFamily: brand.fonts.bold,
+          fontSize: 11,
         },
         sceneStyle: { backgroundColor: brand.colors.background },
       })}
@@ -90,3 +104,7 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabLabel: { textAlign: 'center', fontSize: 12, lineHeight: 16 },
+});

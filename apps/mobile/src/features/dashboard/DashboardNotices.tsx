@@ -1,9 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import type { DashboardSummary } from '@subtracker/contracts';
-import { controlStyles, Panel } from '@/components/ui';
+import { AppButton } from '@/components/AppButton';
+import { Panel } from '@/components/ui';
 import { BANK_STATUS_LABELS, needsBankReconnection } from '@/lib/format';
 import { useBrand } from '@/lib/theme';
 
@@ -30,9 +31,9 @@ function Notice({
           {text}
         </Text>
       </View>
-      <Button mode="text" onPress={onAction} style={styles.action} contentStyle={controlStyles.mainAction}>
+      <AppButton variant="ghost" onPress={onAction} style={styles.action}>
         {actionLabel}
-      </Button>
+      </AppButton>
     </Panel>
   );
 }

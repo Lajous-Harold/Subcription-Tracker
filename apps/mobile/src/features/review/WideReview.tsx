@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import type { Candidate } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { ConfidenceMeter, Panel, ServiceMonogram } from '@/components/ui';
 import { formatShortDate } from '@/lib/format';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
@@ -174,27 +175,19 @@ function CandidateDetail({
       {candidate.suggestedSubscriptionId ? <MergeNotice /> : null}
 
       <View style={[styles.actions, { borderTopColor: colors.border }]}>
-        <Button
-          mode="contained"
-          onPress={() => onDecide('follow')}
-          accessibilityLabel="Suivre cet abonnement"
-          contentStyle={styles.actionContent}
-        >
-          {'Suivre cet abonnement'}
-          {shortcutsAvailable ? <Text style={[styles.inlineKey, { color: colors.onAction }]}>{'  C'}</Text> : null}
-        </Button>
-        <Button
-          mode="outlined"
+        <AppButton onPress={() => onDecide('follow')} shortcutHint={shortcutsAvailable ? 'C' : undefined}>
+          Suivre cet abonnement
+        </AppButton>
+        <AppButton
+          variant="secondary"
           onPress={() => onDecide('ignore')}
-          accessibilityLabel="Ignorer"
-          contentStyle={styles.actionContent}
+          shortcutHint={shortcutsAvailable ? 'I' : undefined}
         >
-          {'Ignorer'}
-          {shortcutsAvailable ? <Text style={[styles.inlineKey, { color: colors.inkMuted }]}>{'  I'}</Text> : null}
-        </Button>
-        <Button mode="text" onPress={() => openCandidate(candidate.id)} contentStyle={styles.actionContent}>
+          Ignorer
+        </AppButton>
+        <AppButton variant="ghost" onPress={() => openCandidate(candidate.id)}>
           Modifier avant de suivre
-        </Button>
+        </AppButton>
       </View>
     </Panel>
   );
@@ -297,8 +290,6 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
   detailSection: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingTop: 16, borderTopWidth: 1 },
-  actionContent: { minHeight: 48, paddingHorizontal: 8 },
-  inlineKey: { opacity: 0.75 },
   empty: { maxWidth: 640, width: '100%', alignSelf: 'center' },
   banner: { position: 'absolute', bottom: 24, alignSelf: 'center', width: 480, maxWidth: '90%' },
 });

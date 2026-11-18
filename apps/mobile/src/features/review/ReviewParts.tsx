@@ -2,9 +2,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import type { Candidate, CandidateOperation } from '@subtracker/contracts';
-import { controlStyles, EmptyState, Muted, Panel } from '@/components/ui';
+import { AppButton } from '@/components/AppButton';
+import { EmptyState, Muted, Panel } from '@/components/ui';
 import { formatMediumDate, formatMoney, formatSignedMoney } from '@/lib/format';
 import { radii, tabularNums, useAppTheme, useBrand } from '@/lib/theme';
 import { decisionMessage, describeHiddenOperations, type DecidedCandidate } from './review-session';
@@ -171,14 +172,9 @@ export function ReviewEmpty() {
         title="Rien à vérifier"
         description="Les abonnements repérés dans vos opérations apparaissent ici après chaque synchronisation bancaire. Rien n’est suivi sans votre accord."
       >
-        <Button
-          mode="outlined"
-          icon="bank-outline"
-          onPress={() => router.navigate('/bank')}
-          contentStyle={controlStyles.mainAction}
-        >
+        <AppButton variant="secondary" icon="bank-outline" onPress={() => router.navigate('/bank')}>
           Ouvrir la banque
-        </Button>
+        </AppButton>
       </EmptyState>
     </Panel>
   );

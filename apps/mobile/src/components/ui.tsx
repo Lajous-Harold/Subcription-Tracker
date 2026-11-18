@@ -9,12 +9,13 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { ActivityIndicator, Button, HelperText, Text } from 'react-native-paper';
+import { ActivityIndicator, HelperText, Text } from 'react-native-paper';
 import type { ConfidenceLevel, Origin } from '@subtracker/contracts';
 import { initialOf, ORIGIN_HELP, ORIGIN_LABELS } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { useLayoutMode } from '@/lib/layout';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
+import { AppButton } from './AppButton';
 
 const MAX_WIDTH = 760;
 const WIDE_MAX_WIDTH = 1200;
@@ -59,9 +60,9 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         {errorMessage(error)}
       </Text>
       {onRetry ? (
-        <Button mode="contained-tonal" onPress={onRetry} style={styles.spaced} contentStyle={controlStyles.mainAction}>
+        <AppButton variant="secondary" onPress={onRetry} style={styles.spaced}>
           Réessayer
-        </Button>
+        </AppButton>
       ) : null}
     </View>
   );
@@ -89,7 +90,10 @@ export function EmptyState({
 
 type PanelTone = 'surface' | 'hero' | 'signal';
 
-/** `hero` est le seul fond sombre d'un écran (le montant du mois) ; `signal` signale ce qui est à vérifier. */
+/**
+ * `hero` est le seul fond contrasté d'un écran (le montant du mois) : encre en clair, inversé en sombre.
+ * `signal` signale ce qui est à vérifier.
+ */
 export function Panel({
   tone = 'surface',
   style,
@@ -234,8 +238,7 @@ export const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 });
 
-/** Champs `outlined` aux arrondis des contrôles, actions principales à 48 px de haut. */
+/** Champs `outlined` aux arrondis des contrôles. */
 export const controlStyles = StyleSheet.create({
   fieldOutline: { borderRadius: radii.control },
-  mainAction: { minHeight: 48 },
 });

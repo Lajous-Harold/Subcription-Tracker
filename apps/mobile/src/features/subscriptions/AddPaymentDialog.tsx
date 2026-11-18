@@ -1,8 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { Button, Dialog, Portal, TextInput } from 'react-native-paper';
+import { Dialog, Portal, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, todayIso } from '@subtracker/contracts';
+import { AppButton, DialogActions } from '@/components/AppButton';
+import { DateField } from '@/components/DateField';
 import { ErrorText, controlStyles, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
@@ -45,7 +47,7 @@ export function AddPaymentDialog({
 
   const submit = () => {
     const cents = parseAmountToCents(amount);
-    if (!IsoDateSchema.safeParse(date).success) return setError('Date au format AAAA-MM-JJ');
+    if (!IsoDateSchema.safeParse(date).success) return setError('Choisissez la date du paiement');
     if (cents === null || cents <= 0) return setError('Montant invalide');
     setError(null);
     addPayment.mutate({ date, amountCents: cents });
@@ -56,13 +58,7 @@ export function AddPaymentDialog({
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Ajouter un paiement</Dialog.Title>
         <Dialog.Content style={dialogStyles.content}>
-          <TextInput
-            label="Date (AAAA-MM-JJ)"
-            mode="outlined"
-            outlineStyle={controlStyles.fieldOutline}
-            value={date}
-            onChangeText={setDate}
-          />
+          <DateField label="Date" value={date} onChange={setDate} />
           <TextInput
             label={`Montant (${currency})`}
             mode="outlined"
@@ -80,20 +76,14 @@ export function AddPaymentDialog({
           />
           <ErrorText message={error} />
         </Dialog.Content>
-        <Dialog.Actions>
-          <Button contentStyle={controlStyles.mainAction} onPress={onDismiss}>
+        <DialogActions>
+          <AppButton variant="ghost" onPress={onDismiss}>
             Annuler
-          </Button>
-          <Button
-            mode="contained"
-            contentStyle={controlStyles.mainAction}
-            onPress={submit}
-            loading={addPayment.isPending}
-            disabled={addPayment.isPending}
-          >
+          </AppButton>
+          <AppButton onPress={submit} loading={addPayment.isPending}>
             Ajouter le paiement
-          </Button>
-        </Dialog.Actions>
+          </AppButton>
+        </DialogActions>
       </Dialog>
     </Portal>
   );

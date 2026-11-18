@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, FAB, SegmentedButtons, TextInput } from 'react-native-paper';
+import { FAB, SegmentedButtons, TextInput } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { controlStyles, EmptyState, ErrorState, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { filterSubscriptions, type StatusFilter } from '@/features/subscriptions-list/filters';
 import { SubscriptionList, SubscriptionTable } from '@/features/subscriptions-list/SubscriptionRows';
@@ -63,9 +64,9 @@ export default function SubscriptionsScreen() {
           <View style={styles.filters}>
             <StatusFilterButtons value={statusFilter} onChange={setStatusFilter} />
           </View>
-          <Button mode="contained" icon="plus" onPress={openNewSubscription} contentStyle={styles.mainActionContent}>
+          <AppButton icon="plus" onPress={openNewSubscription}>
             {ADD_SUBSCRIPTION_LABEL}
-          </Button>
+          </AppButton>
         </View>
         <Panel>
           <TextInput
@@ -108,8 +109,8 @@ export default function SubscriptionsScreen() {
       <FAB
         icon="plus"
         label={ADD_SUBSCRIPTION_LABEL}
-        color={brand.colors.onAction}
-        style={[styles.fab, { backgroundColor: brand.colors.action }]}
+        color={brand.colors.onActionFill}
+        style={[styles.fab, { backgroundColor: brand.colors.actionFill }]}
         onPress={openNewSubscription}
         accessibilityLabel={ADD_SUBSCRIPTION_LABEL}
       />
@@ -121,7 +122,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' },
   filters: { flexGrow: 1, flexShrink: 1, minWidth: 280, maxWidth: 420 },
-  mainActionContent: { minHeight: 48 },
   listPanel: { paddingVertical: 4, gap: 0 },
   fab: { position: 'absolute', right: 16, bottom: 16 },
 });

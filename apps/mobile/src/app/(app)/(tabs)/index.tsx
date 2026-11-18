@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { Button } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { EmptyState, ErrorState, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { DashboardNotices } from '@/features/dashboard/DashboardNotices';
 import { DashboardIndicators, MonthHero, ReviewPrompt } from '@/features/dashboard/SummaryPanels';
@@ -24,18 +24,13 @@ function NoSubscriptions({ showAddButton }: { showAddButton: boolean }) {
         description="Déclarez vos abonnements à la main, ou connectez votre banque pour qu’ils soient détectés."
       >
         {showAddButton ? (
-          <Button mode="contained" icon="plus" onPress={openNewSubscription} contentStyle={styles.mainActionContent}>
+          <AppButton icon="plus" onPress={openNewSubscription}>
             {ADD_SUBSCRIPTION_LABEL}
-          </Button>
+          </AppButton>
         ) : null}
-        <Button
-          mode="outlined"
-          icon="bank-plus"
-          onPress={() => router.push('/bank')}
-          contentStyle={styles.mainActionContent}
-        >
+        <AppButton variant="secondary" icon="bank-plus" onPress={() => router.push('/bank')}>
           Connecter ma banque
-        </Button>
+        </AppButton>
       </EmptyState>
     </Panel>
   );
@@ -53,20 +48,13 @@ function WideToolbar({ bankSync }: { bankSync: BankPullToSync }) {
       ) : null}
       <View style={styles.toolbarActions}>
         {linkedBank ? (
-          <Button
-            mode="outlined"
-            icon="sync"
-            onPress={() => void bankSync.refresh()}
-            loading={syncBusy}
-            disabled={syncBusy}
-            contentStyle={styles.mainActionContent}
-          >
+          <AppButton variant="secondary" icon="sync" onPress={() => void bankSync.refresh()} loading={syncBusy}>
             Synchroniser la banque
-          </Button>
+          </AppButton>
         ) : null}
-        <Button mode="contained" icon="plus" onPress={openNewSubscription} contentStyle={styles.mainActionContent}>
+        <AppButton icon="plus" onPress={openNewSubscription}>
           {ADD_SUBSCRIPTION_LABEL}
-        </Button>
+        </AppButton>
       </View>
     </View>
   );
@@ -118,7 +106,6 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainActionContent: { minHeight: 48 },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 12 },
   toolbarStatus: { flexGrow: 1, fontSize: 14 },
   toolbarActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import {
   IsoDateSchema,
   type CancellationMethod,
@@ -10,6 +10,8 @@ import {
   type Provider,
   type SubscriptionDetail,
 } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
+import { DateField } from '@/components/DateField';
 import { useToast } from '@/components/toast';
 import { ErrorState, ErrorText, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { CancellationProcedure, useSubscriptionProvider } from '@/features/subscriptions/cancellation';
@@ -18,7 +20,6 @@ import { api } from '@/lib/api';
 import { CANCELLATION_METHOD_LABELS, CANCELLATION_STATUS_LABELS, formatDate } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { queryKeys, storeUpdatedSubscription } from '@/lib/query';
-import { useBrand } from '@/lib/theme';
 
 const STATUS_OPTIONS: Option<CancellationStatus>[] = (['started', 'requested', 'confirmed', 'abandoned'] as const).map(
   (status) => ({ value: status, label: CANCELLATION_STATUS_LABELS[status] }),
@@ -58,7 +59,6 @@ function FieldLabel({ children }: { children: string }) {
 function CancellationForm({ subscription, provider }: { subscription: SubscriptionDetail; provider: Provider | null }) {
   const id = subscription.id;
   const toast = useToast();
-  const brand = useBrand();
   const tracked = subscription.cancellation;
   const [status, setStatus] = useState<CancellationStatus>(tracked?.status ?? 'started');
   const [method, setMethod] = useState<CancellationMethod | null>(
@@ -79,8 +79,8 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
       api.upsertCancellation(id, {
         status,
         method,
-        requestedAt: requestedAt.trim() || null,
-        effectiveDate: effectiveDate.trim() || null,
+        requestedAt: requestedAt || null,
+        effectiveDate: effectiveDate || null,
         reference: reference.trim() || null,
         notes: notes.trim() || null,
       }),
@@ -95,7 +95,7 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
 
   const submit = () => {
     for (const value of [requestedAt, effectiveDate]) {
-      if (value.trim() && !IsoDateSchema.safeParse(value.trim()).success) return setError('Dates au format AAAA-MM-JJ');
+      if (value && !IsoDateSchema.safeParse(value).success) return setError('Date invalide');
     }
     setError(null);
     save.mutate();
@@ -125,20 +125,8 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
         <FieldLabel>Méthode utilisée</FieldLabel>
         <OptionGroup label="Méthode utilisée" options={METHOD_OPTIONS} value={method} onChange={setMethod} />
         <FieldLabel>Détails de la demande</FieldLabel>
-        <TextInput
-          label="Date de la demande (AAAA-MM-JJ)"
-          mode="outlined"
-          outlineStyle={controlStyles.fieldOutline}
-          value={requestedAt}
-          onChangeText={setRequestedAt}
-        />
-        <TextInput
-          label="Date d’effet (AAAA-MM-JJ)"
-          mode="outlined"
-          outlineStyle={controlStyles.fieldOutline}
-          value={effectiveDate}
-          onChangeText={setEffectiveDate}
-        />
+        <DateField label="Date de la demande" value={requestedAt} onChange={setRequestedAt} clearable />
+        <DateField label="Date d’effet" value={effectiveDate} onChange={setEffectiveDate} clearable />
         <TextInput
           label="Référence ou numéro de dossier"
           mode="outlined"
@@ -157,28 +145,18 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
         <ErrorText message={error} />
         <View style={formStyles.actions}>
           {tracked ? (
-            <Button
-              mode="outlined"
-              textColor={brand.colors.destructive}
-              contentStyle={controlStyles.mainAction}
+            <AppButton
+              variant="destructive"
               style={formStyles.action}
               onPress={() => clear.mutate()}
               loading={clear.isPending}
-              disabled={clear.isPending}
             >
               Effacer le suivi
-            </Button>
+            </AppButton>
           ) : null}
-          <Button
-            mode="contained"
-            contentStyle={controlStyles.mainAction}
-            style={formStyles.action}
-            onPress={submit}
-            loading={save.isPending}
-            disabled={save.isPending}
-          >
+          <AppButton style={formStyles.action} onPress={submit} loading={save.isPending}>
             Enregistrer le suivi
-          </Button>
+          </AppButton>
         </View>
       </Panel>
     </Screen>

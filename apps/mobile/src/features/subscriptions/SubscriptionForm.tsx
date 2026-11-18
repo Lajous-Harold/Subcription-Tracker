@@ -1,10 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, type SubscriptionDetail } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
+import { DateField } from '@/components/DateField';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
 import { ErrorText, controlStyles, Muted, Panel } from '@/components/ui';
 import { centsToInput } from '@/lib/format';
+import { currencyOptions } from './currencies';
+import { OptionGroup } from './OptionGroup';
 
 export interface SubscriptionFormValues {
   label: string;
@@ -56,15 +60,12 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
     if (!label.trim()) validationErrors.label = 'Libellé requis';
     const cents = parseAmountToCents(amount);
     if (cents === null || cents <= 0) validationErrors.amount = 'Montant invalide (ex. 9,99)';
-    if (!/^[A-Z]{3}$/.test(currency.trim().toUpperCase())) {
-      validationErrors.currency = 'Code devise à 3 lettres (ex. EUR)';
-    }
     const day = billingDay.trim() ? Number(billingDay) : null;
     if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31)) {
       validationErrors.billingDay = 'Jour entre 1 et 31';
     }
-    if (nextDueDate.trim() && !IsoDateSchema.safeParse(nextDueDate.trim()).success) {
-      validationErrors.nextDueDate = 'Date au format AAAA-MM-JJ';
+    if (nextDueDate && !IsoDateSchema.safeParse(nextDueDate).success) {
+      validationErrors.nextDueDate = 'Date invalide';
     }
     setErrors(validationErrors);
     if (cents === null || Object.keys(validationErrors).length > 0) return;
@@ -73,9 +74,9 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
       providerId: provider.provider?.id ?? null,
       customProviderName: provider.provider ? null : provider.customName.trim() || null,
       amountCents: cents,
-      currency: currency.trim().toUpperCase(),
+      currency,
       billingDay: day,
-      nextDueDate: nextDueDate.trim() || null,
+      nextDueDate: nextDueDate || null,
       notes: notes.trim() || null,
     });
   };
@@ -96,30 +97,20 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
       </FormSection>
 
       <FormSection title="Montant mensuel">
-        <View style={formStyles.amountRow}>
-          <TextInput
-            label="Montant"
-            mode="outlined"
-            outlineStyle={controlStyles.fieldOutline}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            error={Boolean(errors.amount)}
-            style={formStyles.amountField}
-          />
-          <TextInput
-            label="Devise"
-            mode="outlined"
-            outlineStyle={controlStyles.fieldOutline}
-            value={currency}
-            onChangeText={setCurrency}
-            autoCapitalize="characters"
-            maxLength={3}
-            error={Boolean(errors.currency)}
-            style={formStyles.currencyField}
-          />
-        </View>
-        <ErrorText message={errors.amount ?? errors.currency} />
+        <TextInput
+          label="Montant"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          error={Boolean(errors.amount)}
+        />
+        <ErrorText message={errors.amount} />
+        <Text variant="labelLarge" style={formStyles.fieldLabel}>
+          Devise
+        </Text>
+        <OptionGroup label="Devise" options={currencyOptions(currency)} value={currency} onChange={setCurrency} />
       </FormSection>
 
       <FormSection title="Échéance (facultatif)">
@@ -134,13 +125,11 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
           error={Boolean(errors.billingDay)}
         />
         <ErrorText message={errors.billingDay} />
-        <TextInput
-          label="Prochaine échéance (AAAA-MM-JJ)"
-          mode="outlined"
-          outlineStyle={controlStyles.fieldOutline}
+        <DateField
+          label="Prochaine échéance"
           value={nextDueDate}
-          onChangeText={setNextDueDate}
-          placeholder="2026-12-05"
+          onChange={setNextDueDate}
+          clearable
           error={Boolean(errors.nextDueDate)}
         />
         <ErrorText message={errors.nextDueDate} />
@@ -160,15 +149,9 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
 
       <Muted>Les valeurs saisies sont marquées « Déclaré » et ne seront jamais modifiées automatiquement.</Muted>
       <ErrorText message={serverError} />
-      <Button
-        mode="contained"
-        contentStyle={controlStyles.mainAction}
-        onPress={submit}
-        loading={submitting}
-        disabled={submitting}
-      >
+      <AppButton onPress={submit} loading={submitting}>
         {submitLabel}
-      </Button>
+      </AppButton>
     </View>
   );
 }
@@ -177,7 +160,5 @@ const formStyles = StyleSheet.create({
   form: { gap: 16 },
   section: { gap: 4 },
   sectionTitle: { marginBottom: 8 },
-  amountRow: { flexDirection: 'row', gap: 8 },
-  amountField: { flex: 2 },
-  currencyField: { flex: 1 },
+  fieldLabel: { marginTop: 8, marginBottom: 4 },
 });

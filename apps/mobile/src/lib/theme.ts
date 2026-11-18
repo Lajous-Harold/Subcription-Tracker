@@ -40,9 +40,11 @@ const lightBrandColors = {
   tile: '#EEF0F3',
   trackInactive: '#D5DAE2',
   action: '#2B50E6',
-  actionPressed: '#1E3BB3',
   actionTint: '#E8ECFF',
-  onAction: '#FFFFFF',
+  actionFill: '#2B50E6',
+  actionFillPressed: '#1E3BB3',
+  onActionFill: '#FFFFFF',
+  controlBorder: '#D5DAE2',
   signal: '#FF7A45',
   signalText: '#B93D0C',
   signalTint: '#FFF1EA',
@@ -63,16 +65,18 @@ const darkBrandColors: BrandColors = {
   tile: '#1F242D',
   trackInactive: '#353C48',
   action: '#9DAEFF',
-  actionPressed: '#C3CDFF',
   actionTint: '#1E2A5E',
-  onAction: '#0E1116',
+  actionFill: '#3D63FF',
+  actionFillPressed: '#2B50E6',
+  onActionFill: '#FFFFFF',
+  controlBorder: '#3A4250',
   signal: '#FF8F61',
   signalText: '#FFB38F',
   signalTint: '#2E1A12',
   signalBorder: '#5C2E1A',
   onSignal: '#0E1116',
   destructive: '#F97066',
-  hero: { background: '#1A1F29', text: '#FFFFFF', muted: '#C9CED6', divider: '#2F3644' },
+  hero: { background: '#F2F4F7', text: '#0E1116', muted: '#4A5260', divider: '#D5DAE2' },
 };
 
 export interface BrandTokens {
@@ -111,7 +115,7 @@ const fonts = {
   default: { ...typescale.default, fontFamily: fontFamilies.regular, fontWeight: 'normal', letterSpacing: 0 },
 } satisfies MD3Theme['fonts'];
 
-/** Paper MD3 arrondit les boutons à 5 × `roundness` : on vise 12 px pour ces contrôles. */
+/** Paper MD3 arrondit ses contrôles (puces, boutons segmentés) à 5 × `roundness` : on vise 12 px. */
 const PAPER_ROUNDNESS = radii.control / 5;
 
 export const lightTheme: AppTheme = {
@@ -121,9 +125,9 @@ export const lightTheme: AppTheme = {
   colors: {
     ...MD3LightTheme.colors,
     primary: lightBrandColors.action,
-    onPrimary: lightBrandColors.onAction,
+    onPrimary: '#FFFFFF',
     primaryContainer: lightBrandColors.actionTint,
-    onPrimaryContainer: lightBrandColors.actionPressed,
+    onPrimaryContainer: lightBrandColors.actionFillPressed,
     inversePrimary: '#A9B8FF',
     secondary: lightBrandColors.inkMuted,
     onSecondary: '#FFFFFF',
@@ -169,7 +173,7 @@ export const darkTheme: AppTheme = {
   colors: {
     ...MD3DarkTheme.colors,
     primary: darkBrandColors.action,
-    onPrimary: darkBrandColors.onAction,
+    onPrimary: '#0E1116',
     primaryContainer: darkBrandColors.actionTint,
     onPrimaryContainer: '#DCE2FF',
     inversePrimary: lightBrandColors.action,

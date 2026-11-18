@@ -1,8 +1,9 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { LoginBodySchema, PASSWORD_MIN_LENGTH, RegisterBodySchema } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { controlStyles, ErrorText, Muted, Panel } from '@/components/ui';
 import { Wordmark } from '@/components/Wordmark';
 import { useAuth } from '@/lib/auth';
@@ -86,21 +87,12 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           <Muted>{`Au moins ${PASSWORD_MIN_LENGTH} caractères, dont une majuscule, une minuscule, un chiffre et un symbole.`}</Muted>
         ) : null}
         <ErrorText message={formError} />
-        <Button
-          mode="contained"
-          onPress={submit}
-          loading={submitting}
-          disabled={submitting}
-          style={styles.submit}
-          contentStyle={styles.touchTarget}
-        >
+        <AppButton onPress={submit} loading={submitting} style={styles.submit}>
           {isSignUp ? 'Créer mon compte' : 'Se connecter'}
-        </Button>
+        </AppButton>
         <View style={styles.switch}>
           <Link href={isSignUp ? '/sign-in' : '/sign-up'} replace asChild>
-            <Button mode="text" contentStyle={styles.touchTarget}>
-              {isSignUp ? 'J’ai déjà un compte' : 'Créer un compte'}
-            </Button>
+            <AppButton variant="ghost">{isSignUp ? 'J’ai déjà un compte' : 'Créer un compte'}</AppButton>
           </Link>
         </View>
       </Panel>
@@ -114,6 +106,5 @@ const styles = StyleSheet.create({
   tagline: { fontFamily: fontFamilies.displayMedium },
   card: { width: '100%', maxWidth: 420, padding: 24, gap: 4 },
   submit: { marginTop: 12 },
-  touchTarget: { minHeight: 48 },
   switch: { alignItems: 'center', marginTop: 4 },
 });

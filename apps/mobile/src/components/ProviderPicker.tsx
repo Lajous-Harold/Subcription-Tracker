@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, List, Portal, Text, TextInput } from 'react-native-paper';
+import { Dialog, List, Portal, Text, TextInput } from 'react-native-paper';
 import type { ProviderSummary } from '@subtracker/contracts';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/query';
 import { useBrand } from '@/lib/theme';
+import { AppButton, DialogActions } from './AppButton';
 import { controlStyles, Muted, ServiceMonogram, styles as uiStyles } from './ui';
 
 export interface ProviderValue {
@@ -36,14 +37,13 @@ export function ProviderPicker({
           <Text variant="bodyLarge" numberOfLines={1} style={styles.selectedName}>
             {value.provider.name}
           </Text>
-          <Button
-            mode="text"
+          <AppButton
+            variant="ghost"
             onPress={() => onChange({ provider: null, customName: '' })}
             accessibilityLabel={`Retirer le fournisseur ${value.provider.name}`}
-            contentStyle={controlStyles.mainAction}
           >
             Retirer
-          </Button>
+          </AppButton>
         </View>
       ) : (
         <TextInput
@@ -54,15 +54,14 @@ export function ProviderPicker({
           onChangeText={(customName) => onChange({ provider: null, customName })}
         />
       )}
-      <Button
-        mode="outlined"
+      <AppButton
+        variant="secondary"
         icon="format-list-bulleted"
         onPress={() => setCatalogOpen(true)}
         style={styles.catalogButton}
-        contentStyle={controlStyles.mainAction}
       >
         {value.provider ? 'Changer de fournisseur' : 'Choisir dans le catalogue'}
-      </Button>
+      </AppButton>
       <Portal>
         <Dialog visible={catalogOpen} onDismiss={() => setCatalogOpen(false)} style={[uiStyles.dialog, styles.dialog]}>
           <Dialog.Title>Fournisseur</Dialog.Title>
@@ -97,11 +96,11 @@ export function ProviderPicker({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => setCatalogOpen(false)} contentStyle={controlStyles.mainAction}>
+          <DialogActions>
+            <AppButton variant="ghost" onPress={() => setCatalogOpen(false)}>
               Fermer
-            </Button>
-          </Dialog.Actions>
+            </AppButton>
+          </DialogActions>
         </Dialog>
       </Portal>
     </View>

@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { StyleSheet, View } from 'react-native';
-import { Button } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { useToast } from '@/components/toast';
 import { Muted } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -32,30 +32,21 @@ export function DemoDataActions() {
       <Muted>
         Des opérations fictives (Spotify, Netflix, salle de sport…) permettent d’essayer la détection sans banque.
       </Muted>
-      <Button
-        mode="outlined"
+      <AppButton
+        variant="secondary"
         icon="database-import-outline"
         onPress={() => loadDemo.mutate()}
         loading={loadDemo.isPending}
-        disabled={loadDemo.isPending}
-        contentStyle={styles.target}
       >
         Charger les données de démonstration
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => removeDemo.mutate()}
-        loading={removeDemo.isPending}
-        disabled={removeDemo.isPending}
-        contentStyle={styles.target}
-      >
+      </AppButton>
+      <AppButton variant="ghost" onPress={() => removeDemo.mutate()} loading={removeDemo.isPending}>
         Retirer les données de démonstration
-      </Button>
+      </AppButton>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: 8 },
-  target: { minHeight: 44 },
 });

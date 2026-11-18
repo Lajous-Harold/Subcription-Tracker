@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRef } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { AppRoundButton } from '@/components/AppButton';
 import { radii, useBrand } from '@/lib/theme';
 import type { ReviewProgress } from './review-session';
 import { ReviewEmpty, UNDO_BANNER_MIN_HEIGHT, UndoBanner } from './ReviewParts';
@@ -17,7 +18,6 @@ const BACK_CARD_OFFSET = 12;
  */
 const DECK_MIN_HEIGHT = 320;
 const DECK_MAX_HEIGHT = 560;
-const DECISION_BUTTON_SIZE = 64;
 
 function ProgressSegments({ progress }: { progress: ReviewProgress }) {
   const { colors } = useBrand();
@@ -98,31 +98,10 @@ function SwipeHint() {
 }
 
 function DecisionButtons({ onIgnore, onFollow }: { onIgnore: () => void; onFollow: () => void }) {
-  const { colors } = useBrand();
   return (
     <View style={styles.buttons}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Ignorer"
-        onPress={onIgnore}
-        style={({ pressed }) => [
-          styles.roundButton,
-          { backgroundColor: pressed ? colors.tile : colors.surface, borderColor: colors.trackInactive },
-        ]}
-      >
-        <MaterialCommunityIcons name="close" size={28} color={colors.ink} />
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Suivre cet abonnement"
-        onPress={onFollow}
-        style={({ pressed }) => [
-          styles.roundButton,
-          { backgroundColor: pressed ? colors.actionPressed : colors.action, borderColor: 'transparent' },
-        ]}
-      >
-        <MaterialCommunityIcons name="check" size={30} color={colors.onAction} />
-      </Pressable>
+      <AppRoundButton icon="close" accessibilityLabel="Ignorer" onPress={onIgnore} />
+      <AppRoundButton icon="check" variant="primary" accessibilityLabel="Suivre cet abonnement" onPress={onFollow} />
     </View>
   );
 }
@@ -205,12 +184,4 @@ const styles = StyleSheet.create({
   hint: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12 },
   hintSide: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   buttons: { flexDirection: 'row', justifyContent: 'center', gap: 48 },
-  roundButton: {
-    width: DECISION_BUTTON_SIZE,
-    height: DECISION_BUTTON_SIZE,
-    borderRadius: DECISION_BUTTON_SIZE / 2,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

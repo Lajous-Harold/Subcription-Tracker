@@ -35,11 +35,18 @@ function BigAmount({ children, size, color }: { children: string; size: number; 
   );
 }
 
+/** Une provenance sans montant n'apprend rien : sa pilule est omise plutôt qu'affichée à 0,00 €. */
 function MonthlySplit({ summary }: { summary: DashboardSummary }) {
+  const { observedCents, declaredCents } = summary.monthly;
+  if (observedCents <= 0 && declaredCents <= 0) return null;
   return (
     <View style={styles.row}>
-      <OriginChip origin="observed" value={formatMoney(summary.monthly.observedCents, summary.currency)} inverse />
-      <OriginChip origin="declared" value={formatMoney(summary.monthly.declaredCents, summary.currency)} inverse />
+      {observedCents > 0 ? (
+        <OriginChip origin="observed" value={formatMoney(observedCents, summary.currency)} inverse />
+      ) : null}
+      {declaredCents > 0 ? (
+        <OriginChip origin="declared" value={formatMoney(declaredCents, summary.currency)} inverse />
+      ) : null}
     </View>
   );
 }
@@ -54,7 +61,7 @@ function ExcludedCurrencies({ summary }: { summary: DashboardSummary }) {
   ) : null;
 }
 
-/** Carte du mois en mode compact : le seul fond sombre de l'écran. */
+/** Carte du mois en mode compact : le seul fond contrasté de l'écran (sombre en clair, inversé en sombre). */
 export function MonthHero({ summary }: { summary: DashboardSummary }) {
   const { colors } = useBrand();
   return (

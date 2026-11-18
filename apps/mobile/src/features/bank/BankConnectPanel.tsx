@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { Muted, Panel } from '@/components/ui';
 import { BANK_STATUS_HELP } from '@/lib/format';
 import { radii, useBrand } from '@/lib/theme';
@@ -34,16 +35,9 @@ export function BankConnectPanel({
           pouvez aussi tout suivre à la main sans connecter de banque.
         </Muted>
       </View>
-      <Button
-        mode="contained"
-        icon="bank-plus"
-        onPress={onConnect}
-        loading={pending}
-        disabled={pending}
-        contentStyle={styles.mainAction}
-      >
+      <AppButton icon="bank-plus" onPress={onConnect} loading={pending}>
         Connecter ma banque
-      </Button>
+      </AppButton>
     </Panel>
   );
 }
@@ -51,5 +45,4 @@ export function BankConnectPanel({
 const styles = StyleSheet.create({
   bankIcon: { width: 48, height: 48, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
   text: { gap: 8 },
-  mainAction: { minHeight: 48 },
 });

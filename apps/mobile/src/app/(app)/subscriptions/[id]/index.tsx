@@ -2,21 +2,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, Icon, IconButton, Text } from 'react-native-paper';
+import { Icon, IconButton, Text } from 'react-native-paper';
 import type { Origin, Payment, ResettableField, SubscriptionDetail } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/toast';
-import {
-  ErrorState,
-  controlStyles,
-  Loading,
-  Muted,
-  OriginChip,
-  Panel,
-  Screen,
-  ServiceMonogram,
-  styles,
-} from '@/components/ui';
+import { ErrorState, Loading, Muted, OriginChip, Panel, Screen, ServiceMonogram, styles } from '@/components/ui';
 import { AddPaymentDialog } from '@/features/subscriptions/AddPaymentDialog';
 import {
   CancellationProcedure,
@@ -334,24 +325,22 @@ export default function SubscriptionDetailScreen() {
         </View>
       )}
       <View style={detailStyles.actions}>
-        <Button
-          mode="outlined"
+        <AppButton
+          variant="secondary"
           icon="plus"
-          contentStyle={controlStyles.mainAction}
           style={detailStyles.action}
           onPress={() => setPaymentDialogOpen(true)}
         >
           Ajouter un paiement
-        </Button>
-        <Button
-          mode="outlined"
+        </AppButton>
+        <AppButton
+          variant="secondary"
           icon="link-variant"
-          contentStyle={controlStyles.mainAction}
           style={detailStyles.action}
           onPress={() => router.push(`/subscriptions/${id}/link-payment`)}
         >
           Rattacher une opération
-        </Button>
+        </AppButton>
       </View>
     </Panel>
   );
@@ -372,49 +361,45 @@ export default function SubscriptionDetailScreen() {
       ) : (
         <Muted>Aucune démarche suivie. L’application n’envoie rien au fournisseur.</Muted>
       )}
-      <Button
-        mode="outlined"
+      <AppButton
+        variant="secondary"
         icon="clipboard-check-outline"
-        contentStyle={controlStyles.mainAction}
         onPress={() => router.push(`/subscriptions/${id}/cancel`)}
       >
         {sub.cancellation ? 'Mettre à jour le suivi' : 'Suivre ma résiliation'}
-      </Button>
+      </AppButton>
     </Panel>
   );
 
   const trackingActions = (
     <View style={detailStyles.actions}>
       {sub.status === 'archived' ? (
-        <Button
-          mode="outlined"
+        <AppButton
+          variant="secondary"
           icon="restore"
-          contentStyle={controlStyles.mainAction}
           style={detailStyles.action}
           onPress={() => changeStatus.mutate('active')}
         >
           Réactiver le suivi
-        </Button>
+        </AppButton>
       ) : (
-        <Button
-          mode="outlined"
+        <AppButton
+          variant="secondary"
           icon="archive-outline"
-          contentStyle={controlStyles.mainAction}
           style={detailStyles.action}
           onPress={() => changeStatus.mutate('archived')}
         >
           Archiver l’abonnement
-        </Button>
+        </AppButton>
       )}
-      <Button
+      <AppButton
+        variant="destructiveGhost"
         icon="delete-outline"
-        textColor={brand.colors.destructive}
-        contentStyle={controlStyles.mainAction}
         style={detailStyles.action}
         onPress={() => setDeleteDialogOpen(true)}
       >
         Ne plus suivre l’abonnement
-      </Button>
+      </AppButton>
     </View>
   );
 

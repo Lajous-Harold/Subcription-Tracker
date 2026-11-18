@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
 import type { BankAccount } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { Muted, Panel } from '@/components/ui';
 import { errorMessage } from '@/lib/http';
 import { tabularNums, useBrand } from '@/lib/theme';
@@ -101,16 +102,15 @@ export function AnalyzedAccountsPanel({
           <Muted>
             Cocher un compte est un choix local. Les comptes partagés avec l’application se règlent chez Powens.
           </Muted>
-          <Button
-            mode="text"
+          <AppButton
+            variant="ghost"
             icon="account-cog-outline"
             onPress={onManageSharing}
             disabled={manageDisabled}
             style={styles.manageButton}
-            contentStyle={styles.target}
           >
             Gérer les comptes partagés
-          </Button>
+          </AppButton>
         </View>
       ) : null}
     </Panel>
@@ -132,6 +132,5 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, minWidth: 0, gap: 2 },
   footer: { gap: 4 },
-  manageButton: { alignSelf: 'flex-start', marginLeft: -12 },
-  target: { minHeight: 44 },
+  manageButton: { alignSelf: 'flex-start', marginLeft: -16 },
 });

@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/toast';
 import { controlStyles, Muted, Panel, Screen, SectionTitle } from '@/components/ui';
@@ -52,9 +53,9 @@ export default function AccountScreen() {
             </Text>
           </View>
         </View>
-        <Button mode="outlined" icon="logout" onPress={() => void signOut()} contentStyle={controlStyles.mainAction}>
+        <AppButton variant="secondary" icon="logout" onPress={() => void signOut()}>
           Se déconnecter
-        </Button>
+        </AppButton>
       </Panel>
 
       <SectionTitle>Bon à savoir</SectionTitle>
@@ -75,16 +76,14 @@ export default function AccountScreen() {
           La suppression du compte efface vos abonnements, paiements et opérations importées, et supprime votre
           connexion chez Powens. Elle est définitive.
         </Text>
-        <Button
-          mode="outlined"
+        <AppButton
+          variant="destructive"
           icon="delete-forever"
-          textColor={colors.destructive}
           onPress={() => setDeleteDialogOpen(true)}
-          style={[styles.deleteButton, { borderColor: colors.destructive }]}
-          contentStyle={styles.target}
+          style={styles.deleteButton}
         >
           Supprimer mon compte
-        </Button>
+        </AppButton>
       </Panel>
       <Muted style={styles.apiUrl}>{`API : ${API_URL}`}</Muted>
 
@@ -119,6 +118,5 @@ const styles = StyleSheet.create({
   bullet: { width: 5, height: 5, borderRadius: radii.pill, marginTop: 9 },
   factText: { flex: 1 },
   deleteButton: { alignSelf: 'flex-start' },
-  target: { minHeight: 44 },
   apiUrl: { textAlign: 'center' },
 });

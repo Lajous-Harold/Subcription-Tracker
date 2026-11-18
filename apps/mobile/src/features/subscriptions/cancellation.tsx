@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import { StyleSheet, View } from 'react-native';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
 import type { Cancellation, Provider, SubscriptionDetail } from '@subtracker/contracts';
-import { controlStyles, Muted } from '@/components/ui';
+import { AppButton } from '@/components/AppButton';
+import { Muted } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { queryKeys } from '@/lib/query';
@@ -79,23 +80,14 @@ export function CancellationProcedure({
         ))}
       </View>
       {officialUrl ? (
-        <Button
-          mode="contained"
-          icon="open-in-new"
-          contentStyle={[controlStyles.mainAction, procedureStyles.iconAfter]}
-          onPress={() => void WebBrowser.openBrowserAsync(officialUrl)}
-        >
+        <AppButton icon="open-in-new" iconPosition="end" onPress={() => void WebBrowser.openBrowserAsync(officialUrl)}>
           Ouvrir la page officielle
-        </Button>
+        </AppButton>
       ) : null}
       {helpUrl ? (
-        <Button
-          mode="outlined"
-          contentStyle={controlStyles.mainAction}
-          onPress={() => void WebBrowser.openBrowserAsync(helpUrl)}
-        >
+        <AppButton variant="secondary" onPress={() => void WebBrowser.openBrowserAsync(helpUrl)}>
           Lire l’aide officielle
-        </Button>
+        </AppButton>
       ) : null}
     </>
   );
@@ -165,7 +157,6 @@ const procedureStyles = StyleSheet.create({
   step: { flexDirection: 'row', gap: 10 },
   stepNumber: { width: 24, height: 24, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
   stepText: { flex: 1, lineHeight: 20 },
-  iconAfter: { flexDirection: 'row-reverse' },
   progress: { gap: 8 },
   track: { flexDirection: 'row', gap: 6 },
   trackStep: { flex: 1, gap: 6 },

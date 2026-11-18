@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
-import { useBrand } from '@/lib/theme';
-import { controlStyles, styles } from './ui';
+import { Dialog, Portal, Text } from 'react-native-paper';
+import { AppButton, DialogActions } from './AppButton';
+import { styles } from './ui';
 
 export function ConfirmDialog({
   visible,
@@ -24,7 +24,6 @@ export function ConfirmDialog({
   onDismiss: () => void;
   children?: ReactNode;
 }) {
-  const brand = useBrand();
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
@@ -33,20 +32,14 @@ export function ConfirmDialog({
           <Text variant="bodyMedium">{message}</Text>
           {children}
         </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={onDismiss} contentStyle={controlStyles.mainAction}>
+        <DialogActions>
+          <AppButton variant="ghost" onPress={onDismiss}>
             Annuler
-          </Button>
-          <Button
-            onPress={onConfirm}
-            contentStyle={controlStyles.mainAction}
-            loading={loading}
-            disabled={loading}
-            textColor={destructive ? brand.colors.destructive : undefined}
-          >
+          </AppButton>
+          <AppButton variant={destructive ? 'destructiveGhost' : 'ghost'} onPress={onConfirm} loading={loading}>
             {confirmLabel}
-          </Button>
-        </Dialog.Actions>
+          </AppButton>
+        </DialogActions>
       </Dialog>
     </Portal>
   );

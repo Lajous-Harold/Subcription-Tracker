@@ -2,8 +2,9 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { parseAmountToCents, type AcceptCandidateBody, type Candidate } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
 import { useToast } from '@/components/toast';
 import {
@@ -50,9 +51,9 @@ export default function CandidateReviewScreen() {
       <Screen>
         <Panel>
           <EmptyState title="Détection déjà traitée">
-            <Button mode="outlined" onPress={() => router.navigate('/review')} contentStyle={styles.mainActionContent}>
+            <AppButton variant="secondary" onPress={() => router.navigate('/review')}>
               Revenir à la vérification
-            </Button>
+            </AppButton>
           </EmptyState>
         </Panel>
       </Screen>
@@ -170,15 +171,9 @@ function CandidateReviewForm({ candidate }: { candidate: Candidate }) {
         prochains paiements.
       </Muted>
       <ErrorText message={formError} />
-      <Button
-        mode="contained"
-        onPress={submit}
-        loading={accept.isPending}
-        disabled={accept.isPending}
-        contentStyle={styles.mainActionContent}
-      >
+      <AppButton onPress={submit} loading={accept.isPending}>
         Suivre cet abonnement
-      </Button>
+      </AppButton>
     </Panel>
   );
 }
@@ -190,5 +185,4 @@ const styles = StyleSheet.create({
   amountRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 },
   signals: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   operations: { gap: 8 },
-  mainActionContent: { minHeight: 48 },
 });

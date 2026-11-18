@@ -2,8 +2,9 @@ import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import type { Transaction } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { useToast } from '@/components/toast';
 import { EmptyState, ErrorState, FormColumn, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -118,15 +119,14 @@ export default function LinkPaymentScreen() {
               />
             ))}
             {transactions.hasNextPage ? (
-              <Button
-                mode="outlined"
-                contentStyle={controlStyles.mainAction}
+              <AppButton
+                variant="secondary"
                 style={linkStyles.more}
                 onPress={() => transactions.fetchNextPage()}
                 loading={transactions.isFetchingNextPage}
               >
                 Afficher plus d’opérations
-              </Button>
+              </AppButton>
             ) : null}
           </Panel>
         )}

@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Icon, Text } from 'react-native-paper';
+import { ActivityIndicator, Icon, Text } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { Muted, Panel, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/http';
 import { completeConnectCallback, type CallbackParams } from '@/lib/powens-connect';
@@ -66,14 +67,9 @@ function CallbackFailed({ message }: { message: string }) {
           Connexion bancaire non finalisée
         </Text>
         <Text variant="bodyMedium">{message}</Text>
-        <Button
-          mode="contained"
-          icon="arrow-left"
-          onPress={() => router.replace('/bank')}
-          contentStyle={styles.mainAction}
-        >
+        <AppButton icon="arrow-left" onPress={() => router.replace('/bank')}>
           Revenir à la banque
-        </Button>
+        </AppButton>
       </Panel>
     </Screen>
   );
@@ -83,5 +79,4 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
   centerText: { textAlign: 'center', maxWidth: 420 },
   statusIcon: { width: 48, height: 48, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
-  mainAction: { minHeight: 48 },
 });

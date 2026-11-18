@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
+import { AppButton } from '@/components/AppButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/toast';
 import { ErrorState, Loading, Panel, Screen } from '@/components/ui';
@@ -31,7 +32,6 @@ function PowensNotConfiguredNotice() {
 
 export default function BankScreen() {
   const toast = useToast();
-  const { colors } = useBrand();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [pulling, setPulling] = useState(false);
   const { bankLinkQuery, bankLink, linkedBank, syncing } = useBankLink();
@@ -123,15 +123,9 @@ export default function BankScreen() {
       <View style={styles.secondaryActions}>
         {DEMO_ENABLED ? <DemoDataActions /> : null}
         {linkedBank ? (
-          <Button
-            mode="text"
-            icon="link-off"
-            textColor={colors.destructive}
-            onPress={() => setUnlinkOpen(true)}
-            contentStyle={styles.target}
-          >
+          <AppButton variant="destructiveGhost" icon="link-off" onPress={() => setUnlinkOpen(true)}>
             Déconnecter la banque
-          </Button>
+          </AppButton>
         ) : null}
       </View>
 
@@ -153,5 +147,4 @@ const styles = StyleSheet.create({
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 16 },
   noticeText: { flex: 1 },
   secondaryActions: { gap: 8, marginTop: 8 },
-  target: { minHeight: 44 },
 });

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
 import type { BankLink } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { Muted, Panel } from '@/components/ui';
 import { BANK_STATUS_LABELS, formatDateTime, needsBankReconnection } from '@/lib/format';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
@@ -137,27 +138,19 @@ export function BankStatusPanel({
       </View>
 
       {reconnectionNeeded ? (
-        <Button
-          mode="contained"
-          icon="refresh"
-          onPress={onReconnect}
-          loading={reconnectPending}
-          disabled={reconnectPending}
-          contentStyle={styles.mainAction}
-        >
+        <AppButton icon="refresh" onPress={onReconnect} loading={reconnectPending}>
           Reconnecter ma banque
-        </Button>
+        </AppButton>
       ) : null}
-      <Button
-        mode={reconnectionNeeded ? 'outlined' : 'contained'}
+      <AppButton
+        variant={reconnectionNeeded ? 'secondary' : 'primary'}
         icon="sync"
         onPress={onSync}
         loading={syncPending}
         disabled={syncPending || syncing}
-        contentStyle={styles.mainAction}
       >
         {syncing ? 'Synchronisation en cours' : 'Synchroniser maintenant'}
-      </Button>
+      </AppButton>
     </Panel>
   );
 }
@@ -172,5 +165,4 @@ const styles = StyleSheet.create({
   tile: { flex: 1, minWidth: 0, borderRadius: radii.control, padding: 12, gap: 2 },
   notice: { flexDirection: 'row', gap: 10, borderRadius: radii.control, borderWidth: 1, padding: 12 },
   noticeText: { flex: 1 },
-  mainAction: { minHeight: 48 },
 });

@@ -43,15 +43,13 @@ export function Sidebar() {
         {
           backgroundColor: brand.colors.surface,
           borderRightColor: brand.colors.border,
-          paddingTop: insets.top + 28,
-          paddingBottom: insets.bottom + 28,
+          paddingTop: insets.top + SIDEBAR_VERTICAL_PADDING - HOME_LINK_EXTRA_HEIGHT / 2,
+          paddingBottom: insets.bottom + SIDEBAR_VERTICAL_PADDING,
           paddingLeft: insets.left + 16,
         },
       ]}
     >
-      <View style={styles.wordmark}>
-        <Wordmark size={26} />
-      </View>
+      <HomeLink />
       <View role="navigation" accessibilityLabel="Navigation principale" style={styles.items}>
         {SIDEBAR_ENTRIES.map((entry) => (
           <SidebarItem
@@ -64,6 +62,35 @@ export function Sidebar() {
       </View>
       <BankSummary />
     </View>
+  );
+}
+
+/** Le logo mène au tableau de bord, comme sur la plupart des applications web. */
+function HomeLink() {
+  const brand = useBrand();
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const idleBackground = hovered ? brand.colors.background : 'transparent';
+  return (
+    <Link
+      href="/"
+      asChild
+      style={[
+        styles.homeLink,
+        { borderRadius: brand.radii.control, backgroundColor: pressed ? brand.colors.tile : idleBackground },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="abo, tableau de bord"
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+      >
+        <Wordmark size={26} decorative />
+      </Pressable>
+    </Link>
   );
 }
 
@@ -172,11 +199,27 @@ function SidebarItem({ entry, active, badge }: { entry: SidebarEntry; active: bo
   );
 }
 
-const SIDEBAR_WIDTH = 240;
+const SIDEBAR_WIDTH = 220;
+const SIDEBAR_VERTICAL_PADDING = 28;
+const HOME_LINK_HEIGHT = 44;
+/** Hauteur rendue par `Wordmark` en taille 26 : le lien grandit pour la cible tactile sans décaler le logo. */
+const WORDMARK_HEIGHT = 30;
+const HOME_LINK_EXTRA_HEIGHT = HOME_LINK_HEIGHT - WORDMARK_HEIGHT;
 
 const styles = StyleSheet.create({
-  sidebar: { width: SIDEBAR_WIDTH, borderRightWidth: 1, paddingRight: 16, gap: 28 },
-  wordmark: { paddingHorizontal: 8 },
+  sidebar: {
+    width: SIDEBAR_WIDTH,
+    borderRightWidth: 1,
+    paddingRight: 16,
+    gap: SIDEBAR_VERTICAL_PADDING - HOME_LINK_EXTRA_HEIGHT / 2,
+  },
+  homeLink: {
+    minHeight: HOME_LINK_HEIGHT,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+  },
   items: { gap: 4 },
   item: {
     minHeight: 44,

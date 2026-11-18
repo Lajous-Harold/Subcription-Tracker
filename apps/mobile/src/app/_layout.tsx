@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,11 +11,12 @@ import { ToastProvider } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
 import { darkTheme, fontAssets, lightTheme, navigationDark, navigationLight } from '@/lib/theme';
+import { useIsDarkTheme } from '@/lib/theme-preference';
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useIsDarkTheme();
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>

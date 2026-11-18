@@ -25,11 +25,26 @@ function LogoMark({ size = 32, color }: { size?: number; color?: string }) {
   );
 }
 
-export function Wordmark({ size = 28 }: { size?: number }) {
+/**
+ * `decorative` quand un lien qui l'entoure porte déjà le nom (logo de la barre latérale) ;
+ * sans `showsMark`, le seul mot, comme dans l'en-tête de l'Accueil mobile.
+ */
+export function Wordmark({
+  size = 28,
+  showsMark = true,
+  decorative = false,
+}: {
+  size?: number;
+  showsMark?: boolean;
+  decorative?: boolean;
+}) {
   const brand = useBrand();
+  const accessibility = decorative
+    ? ({ 'aria-hidden': true } as const)
+    : ({ accessible: true, accessibilityRole: 'header', accessibilityLabel: 'abo' } as const);
   return (
-    <View style={styles.row} accessible accessibilityRole="header" accessibilityLabel="abo">
-      <LogoMark size={Math.round(size * 1.15)} />
+    <View style={styles.row} {...accessibility}>
+      {showsMark ? <LogoMark size={Math.round(size * 1.15)} /> : null}
       <Text
         style={{
           fontFamily: brand.fonts.displayBold,
