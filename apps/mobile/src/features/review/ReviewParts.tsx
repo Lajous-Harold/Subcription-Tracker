@@ -82,7 +82,9 @@ export function OperationList({
   const [expanded, setExpanded] = useState(false);
   if (operations.length === 0) return <Muted>Ces opérations ne sont plus présentes à la banque.</Muted>;
 
-  const hiddenCount = collapsedCount === undefined ? 0 : Math.max(0, operations.length - collapsedCount);
+  const overflow = collapsedCount === undefined ? 0 : Math.max(0, operations.length - collapsedCount);
+  // Replier pour une seule ligne coûterait plus qu'elle : on l'affiche directement.
+  const hiddenCount = overflow > 1 ? overflow : 0;
   const shown = hiddenCount > 0 && !expanded ? operations.slice(0, collapsedCount) : operations;
   return (
     <View>

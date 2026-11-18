@@ -136,7 +136,8 @@ describe('detectSubscriptions — cas limites', () => {
       (date) => base({ date }),
     );
     const [candidate] = detectSubscriptions(txs, [], { today: '2026-11-10' });
-    expect(candidate?.reasons[0]).toBe('7 paiements entre le 1 mai 2026 et le 1 nov. 2026');
+    // Espaces insécables : une date ne se coupe pas en fin de ligne.
+    expect(candidate?.reasons[0]).toBe('7 paiements entre le 1 mai 2026 et le 1 nov. 2026');
   });
 
   it('borne le jour au dernier jour du mois pour une échéance au 31', () => {

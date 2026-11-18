@@ -138,7 +138,13 @@ function BankSummary() {
             <Text style={[titleStyle, { color: summary.needsAttention ? brand.colors.signalText : brand.colors.ink }]}>
               {summary.title}
             </Text>
-            <Text style={[styles.bankText, { fontFamily: brand.fonts.regular, color: brand.colors.inkMuted }]}>
+            <Text
+              style={[
+                styles.bankText,
+                styles.bankDetail,
+                { fontFamily: brand.fonts.regular, color: brand.colors.inkMuted },
+              ]}
+            >
               {summary.detail}
             </Text>
           </>
@@ -146,7 +152,11 @@ function BankSummary() {
           <>
             <Text style={[titleStyle, { color: brand.colors.ink }]}>Aucune banque connectée</Text>
             <Text
-              style={[titleStyle, { color: brand.colors.action, textDecorationLine: hovered ? 'underline' : 'none' }]}
+              style={[
+                titleStyle,
+                styles.bankDetail,
+                { color: brand.colors.action, textDecorationLine: hovered ? 'underline' : 'none' },
+              ]}
             >
               Connecter ma banque
             </Text>
@@ -248,4 +258,5 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12 },
   bank: { marginTop: 'auto', padding: 14 },
   bankText: { fontSize: 13, lineHeight: 20 },
+  bankDetail: { marginTop: 4 },
 });

@@ -26,7 +26,10 @@ const FR_MEDIUM_DATE = new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'UTC',
 });
 
-/** Même rendu que `formatMediumDate` de l'app (« 3 nov. 2026 ») : les raisons s'affichent telles quelles. */
+/**
+ * Même rendu que `formatMediumDate` de l'app (« 3 nov. 2026 ») : les raisons s'affichent telles quelles.
+ * Espaces insécables : dans une phrase, la date ne se coupe pas en fin de ligne.
+ */
 export function formatFrDate(value: string): string {
-  return FR_MEDIUM_DATE.format(parseIsoDate(value));
+  return FR_MEDIUM_DATE.format(parseIsoDate(value)).replace(/ /g, ' ');
 }
