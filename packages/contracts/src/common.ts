@@ -55,6 +55,11 @@ export const ClientPlatformSchema = z.enum(['web', 'native']);
 export type ClientPlatform = z.infer<typeof ClientPlatformSchema>;
 /** Le backend choisit le transport du refresh token (cookie ou corps) d'après cet en-tête. */
 export const CLIENT_PLATFORM_HEADER = 'x-client-platform';
+/**
+ * Code d'erreur d'un refresh token remplacé à l'instant par une rotation concurrente (autre onglet partageant
+ * le cookie) : la session reste valide, le client réessaie avec le jeton le plus récent.
+ */
+export const REFRESH_SUPERSEDED_ERROR_CODE = 'REFRESH_SUPERSEDED';
 
 export const HealthResponseSchema = z.object({ status: z.literal('ok') });
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
