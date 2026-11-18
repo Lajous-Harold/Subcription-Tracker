@@ -103,7 +103,9 @@ async function absorbIntoSubscription(
  * Idempotent :
  * - série d'un abonnement suivi → nouveaux paiements rattachés, montant/jour mis à jour sauf champs déclarés ;
  * - candidat rejeté ou écarté → jamais reproposé ;
- * - nouvelle série → candidat `pending`.
+ * - nouvelle série → candidat `pending` ;
+ * - candidat `pending` qu'aucun résultat du moteur ne met à jour ni ne crée (compte exclu, opérations supprimées,
+ *   série abandonnée) → supprimé ; les candidats décidés ne sont jamais touchés.
  */
 export async function runDetection(userId: string, today = todayIso()): Promise<DetectionRunResponse> {
   const accounts = await BankAccountModel.find({ userId, analyzed: true }, { _id: 1 }).lean<BankAccountDoc[]>();
@@ -122,6 +124,7 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
   let created = 0;
   let updated = 0;
   let attachedPayments = 0;
+  const stillDetectedPendingIds: Types.ObjectId[] = [];
 
   for (const result of results) {
     const subscription = subscriptions.find(
@@ -151,6 +154,7 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
     if (existing) {
       if (existing.status === 'pending') {
         await CandidateModel.updateOne({ _id: existing._id, userId }, { $set: candidateFields(result) });
+        stillDetectedPendingIds.push(existing._id);
         updated += 1;
       }
       continue;
@@ -162,8 +166,11 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
       ...candidateFields(result),
     });
     candidates.push(doc.toObject() as CandidateDoc);
+    stillDetectedPendingIds.push(doc._id);
     created += 1;
   }
+
+  await CandidateModel.deleteMany({ userId, status: 'pending', _id: { $nin: stillDetectedPendingIds } });
 
   const pending = await CandidateModel.countDocuments({ userId, status: 'pending' });
   return { analyzedTransactions: txDocs.length, created, updated, attachedPayments, pending };
