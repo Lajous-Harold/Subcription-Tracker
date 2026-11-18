@@ -1,0 +1,8 @@
+<!-- Marque abo pour l'écran de démarrage. Rendu, depuis apps/mobile : npx -y @resvg/resvg-js-cli assets/images/splash-icon.svg assets/images/splash-icon.png -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <g transform="translate(-151 -118) scale(11)">
+    <path d="M52 36a16 16 0 1 1-6.2-12.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+    <path d="M44 16l4 8-8.6 1.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="52" cy="50" r="5" fill="#FF7A45"/>
+  </g>
+</svg>
