@@ -65,7 +65,7 @@ Connexion bancaire réelle : renseigner `POWENS_DOMAIN`, `POWENS_CLIENT_ID` et `
 ## Essayer l'application en ligne
 
 - **Web** : <https://subscription-tracker-42pr.onrender.com>. L'API est servie sur la même origine, sous `/api`.
-- **Android** : l'APK se télécharge sur <https://expo.dev/accounts/toscy/projects/subscription-tracker/builds/ea20928e-d8b8-406e-97c4-6ca67ff2e726> (page d’installation avec QR code).
+- **Android** : l'APK se télécharge sur <https://expo.dev/accounts/toscy/projects/subscription-tracker/builds/7c5e844e-2af2-495e-8cde-77be80b074e0> (page d’installation avec QR code).
 - **Expo Go** : mettre `EXPO_PUBLIC_API_URL=https://subscription-tracker-42pr.onrender.com/api` dans `apps/mobile/.env`, lancer `npm run expo-go`, puis scanner le QR code avec l'appareil photo (iOS) ou avec Expo Go (Android).
 
 L'hébergement gratuit endort le service après 15 min sans trafic, et le réveil prend environ 1 min. Avant une présentation, lancer `npm run demo:check -- https://subscription-tracker-42pr.onrender.com` : le script réveille le service, rejoue le parcours de démonstration avec un compte jetable, puis le supprime.
