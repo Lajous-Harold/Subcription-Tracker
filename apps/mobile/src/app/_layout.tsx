@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
@@ -8,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
-import { darkTheme, lightTheme, navigationDark, navigationLight } from '@/lib/theme';
+import { darkTheme, fontAssets, lightTheme, navigationDark, navigationLight } from '@/lib/theme';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -37,12 +38,16 @@ export default function RootLayout() {
 /** Les routes protégées ne sont accessibles qu'avec une session ; les liens profonds redirigent vers la connexion. */
 function RootNavigator() {
   const { status } = useAuth();
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // Une police introuvable ne doit pas bloquer l'app : on retombe alors sur la police système.
+  const fontsSettled = fontsLoaded || fontError !== null;
+  const ready = status !== 'loading' && fontsSettled;
 
   useEffect(() => {
-    if (status !== 'loading') void SplashScreen.hideAsync();
-  }, [status]);
+    if (ready) void SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (status === 'loading') return null;
+  if (!ready) return null;
   const signedIn = status === 'signedIn';
 
   return (

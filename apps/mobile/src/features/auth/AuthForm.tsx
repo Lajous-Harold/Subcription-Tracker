@@ -1,11 +1,13 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import { Button, Surface, Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { LoginBodySchema, PASSWORD_MIN_LENGTH, RegisterBodySchema } from '@subtracker/contracts';
-import { ErrorText, Muted } from '@/components/ui';
+import { ErrorText, Muted, Panel } from '@/components/ui';
+import { Wordmark } from '@/components/Wordmark';
 import { useAuth } from '@/lib/auth';
 import { ApiError, errorMessage } from '@/lib/http';
+import { fontFamilies, radii } from '@/lib/theme';
 
 export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const { signIn, signUp } = useAuth();
@@ -39,10 +41,14 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <Surface style={styles.card} elevation={1}>
-        <Text variant="headlineSmall">Subscription Tracker</Text>
-        <Muted>Repérez et maîtrisez vos abonnements.</Muted>
-        <Text variant="titleMedium" style={styles.title}>
+      <View style={styles.brand}>
+        <Wordmark size={40} />
+        <Text variant="titleMedium" style={styles.tagline}>
+          Tout ce qui repart chaque mois, sous les yeux.
+        </Text>
+      </View>
+      <Panel style={styles.card}>
+        <Text variant="headlineSmall" accessibilityRole="header">
           {isSignUp ? 'Créer un compte' : 'Se connecter'}
         </Text>
         <TextInput
@@ -53,6 +59,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
+          outlineStyle={styles.input}
           error={Boolean(fieldErrors.email)}
         />
         <ErrorText message={fieldErrors.email} />
@@ -64,6 +71,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           secureTextEntry={!showPassword}
           autoComplete={isSignUp ? 'new-password' : 'current-password'}
           error={Boolean(fieldErrors.password)}
+          outlineStyle={styles.input}
           onSubmitEditing={submit}
           right={
             <TextInput.Icon
@@ -78,23 +86,35 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           <Muted>{`Au moins ${PASSWORD_MIN_LENGTH} caractères, dont une majuscule, une minuscule, un chiffre et un symbole.`}</Muted>
         ) : null}
         <ErrorText message={formError} />
-        <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={styles.submit}>
+        <Button
+          mode="contained"
+          onPress={submit}
+          loading={submitting}
+          disabled={submitting}
+          style={styles.submit}
+          contentStyle={styles.touchTarget}
+        >
           {isSignUp ? 'Créer mon compte' : 'Se connecter'}
         </Button>
         <View style={styles.switch}>
           <Link href={isSignUp ? '/sign-in' : '/sign-up'} replace asChild>
-            <Button mode="text">{isSignUp ? 'J’ai déjà un compte' : 'Créer un compte'}</Button>
+            <Button mode="text" contentStyle={styles.touchTarget}>
+              {isSignUp ? 'J’ai déjà un compte' : 'Créer un compte'}
+            </Button>
           </Link>
         </View>
-      </Surface>
+      </Panel>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
-  card: { width: '100%', maxWidth: 420, padding: 24, borderRadius: 16, gap: 4 },
-  title: { marginTop: 16, marginBottom: 8 },
+  brand: { width: '100%', maxWidth: 420, gap: 12, marginBottom: 24 },
+  tagline: { fontFamily: fontFamilies.displayMedium },
+  card: { width: '100%', maxWidth: 420, padding: 24, gap: 4 },
+  input: { borderRadius: radii.control },
   submit: { marginTop: 12 },
+  touchTarget: { minHeight: 48 },
   switch: { alignItems: 'center', marginTop: 4 },
 });

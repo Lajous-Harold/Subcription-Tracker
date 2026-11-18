@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
-import { DESTRUCTIVE_COLOR } from '@/lib/theme';
+import { useBrand } from '@/lib/theme';
 import { styles } from './ui';
 
 export function ConfirmDialog({
@@ -24,6 +24,7 @@ export function ConfirmDialog({
   onDismiss: () => void;
   children?: ReactNode;
 }) {
+  const brand = useBrand();
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
@@ -38,7 +39,7 @@ export function ConfirmDialog({
             onPress={onConfirm}
             loading={loading}
             disabled={loading}
-            textColor={destructive ? DESTRUCTIVE_COLOR : undefined}
+            textColor={destructive ? brand.colors.destructive : undefined}
           >
             {confirmLabel}
           </Button>
