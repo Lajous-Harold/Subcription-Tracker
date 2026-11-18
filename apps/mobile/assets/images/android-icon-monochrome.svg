@@ -1,0 +1,17 @@
+<!-- Marque abo en une couleur (Android la teinte). Rendu, depuis apps/mobile : npx -y @resvg/resvg-js-cli assets/images/android-icon-monochrome.svg assets/images/android-icon-monochrome.png -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Sans couleur, le point se confondrait avec la boucle : un liseré vide les sépare. -->
+    <mask id="dot-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+      <rect width="72" height="72" fill="#FFFFFF"/>
+      <circle cx="52" cy="50" r="8" fill="#000000"/>
+    </mask>
+  </defs>
+  <g transform="translate(85.76 120.32) scale(11.52)">
+    <g mask="url(#dot-gap)">
+      <path d="M52 36a16 16 0 1 1-6.2-12.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+      <path d="M44 16l4 8-8.6 1.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <circle cx="52" cy="50" r="5" fill="#FFFFFF"/>
+  </g>
+</svg>

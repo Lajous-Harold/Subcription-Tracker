@@ -1,0 +1,9 @@
+<!-- Marque abo (cf. src/components/Wordmark.tsx). Rendu, depuis apps/mobile : npx -y @resvg/resvg-js-cli assets/images/icon.svg assets/images/icon.png -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0E1116"/>
+  <g transform="translate(-56.32 -10.24) scale(15.36)">
+    <path d="M52 36a16 16 0 1 1-6.2-12.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+    <path d="M44 16l4 8-8.6 1.6" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="52" cy="50" r="5" fill="#FF7A45"/>
+  </g>
+</svg>
