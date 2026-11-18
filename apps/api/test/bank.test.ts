@@ -2,7 +2,7 @@ import nock from 'nock';
 import request from 'supertest';
 import { describe, expect, it } from '@jest/globals';
 import { purgeExpiredData } from '../src/jobs/scheduler';
-import { BankLinkModel, PowensCleanupModel, WebhookEventModel } from '../src/modules/bank/models';
+import { BankAccountModel, BankLinkModel, PowensCleanupModel, WebhookEventModel } from '../src/modules/bank/models';
 import { waitForSyncs } from '../src/modules/bank/sync';
 import { computeWebhookSignature } from '../src/modules/powens/client';
 import { PaymentModel, SubscriptionModel } from '../src/modules/subscriptions/models';
@@ -67,10 +67,33 @@ const CONNECTION = {
   connector: { name: 'Connecteur de test' },
 };
 
+const CHECKING_NUMBER = '0001 2345 4821';
+const CHECKING_IBAN = 'FR76 3000 4000 0312 3456 7890 143';
+const SAVINGS_IBAN = 'FR14 2004 1010 0505 0001 3M02 606';
+
 const ACCOUNTS = {
   accounts: [
-    { id: 11, name: 'Compte courant', type: 'checking', balance: 1234.56, currency: { id: 'EUR' }, disabled: null },
-    { id: 99, name: 'Livret', type: 'savings', balance: 10, currency: { id: 'EUR' }, disabled: '2026-01-01 00:00:00' },
+    {
+      id: 11,
+      name: 'Compte courant',
+      type: 'checking',
+      number: CHECKING_NUMBER,
+      iban: CHECKING_IBAN,
+      balance: 1234.56,
+      currency: { id: 'EUR' },
+      disabled: null,
+    },
+    {
+      id: 99,
+      name: 'Livret',
+      type: 'savings',
+      number: null,
+      iban: SAVINGS_IBAN,
+      balance: 10,
+      currency: { id: 'EUR' },
+      disabled: '2026-01-01 00:00:00',
+    },
+    { id: 12, name: 'Carte prépayée', type: 'card', balance: 0, currency: { id: 'EUR' }, disabled: null },
   ],
 };
 
@@ -107,6 +130,21 @@ async function startConnect(target: TestApp, user: Auth, platform: 'web' | 'nati
     .send({ flow: 'connect', platform })
     .expect(201);
   return { ...res.body, state: new URL(res.body.url).searchParams.get('state') as string };
+}
+
+/** Powens signale, à la synchronisation suivante, la suppression de la plus ancienne opération Spotify. */
+async function deleteOldestSpotifyAtBank(user: Auth) {
+  const removed = { ...POWENS_TRANSACTIONS[0]!, deleted: '2026-11-15 10:00:00', last_update: '2099-01-01 00:00:00' };
+  nock(POWENS).get('/2.0/users/me/connections/7').query(true).reply(200, CONNECTION);
+  nock(POWENS).get('/2.0/users/me/accounts').query(true).reply(200, ACCOUNTS);
+  nock(POWENS)
+    .get('/2.0/users/me/transactions')
+    .query(true)
+    .reply(200, { transactions: [removed] });
+  nock(POWENS).put('/2.0/users/me/connections/7').reply(200, CONNECTION);
+  await request(app).post('/api/bank/sync').set(user.auth).expect(202);
+  await waitForSyncs();
+  return removed;
 }
 
 async function connectBank(user: Auth) {
@@ -185,16 +223,7 @@ describe('connexion bancaire Powens (simulée)', () => {
   it('suppression côté banque : la transaction est marquée supprimée et sort de la détection', async () => {
     const user = await registerUser(app);
     await connectBank(user);
-    const removed = { ...POWENS_TRANSACTIONS[0]!, deleted: '2026-11-15 10:00:00', last_update: '2099-01-01 00:00:00' };
-    nock(POWENS).get('/2.0/users/me/connections/7').query(true).reply(200, CONNECTION);
-    nock(POWENS).get('/2.0/users/me/accounts').query(true).reply(200, ACCOUNTS);
-    nock(POWENS)
-      .get('/2.0/users/me/transactions')
-      .query(true)
-      .reply(200, { transactions: [removed] });
-    nock(POWENS).put('/2.0/users/me/connections/7').reply(200, CONNECTION);
-    await request(app).post('/api/bank/sync').set(user.auth).expect(202);
-    await waitForSyncs();
+    const removed = await deleteOldestSpotifyAtBank(user);
     const doc = await TransactionModel.findOne({ externalId: String(removed.id) }).lean();
     expect(doc?.deletedAt).toBeTruthy();
     const list = await request(app).get('/api/transactions').set(user.auth).expect(200);
@@ -357,6 +386,125 @@ describe('connexion bancaire Powens (simulée)', () => {
       .expect(201);
     testApp(); // restaure la configuration par défaut pour les tests suivants
     expect(res.body.error?.code).toBe('POWENS_NOT_CONFIGURED');
+  });
+});
+
+type AccountItem = { id: string; name: string; numberLast4: string | null; transactionCount: number };
+
+async function listAccountsByName(user: Auth): Promise<Map<string, AccountItem>> {
+  const res = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
+  return new Map(res.body.items.map((account: AccountItem) => [account.name, account]));
+}
+
+describe('comptes bancaires : numéro masqué et nombre d’opérations', () => {
+  it('expose les 4 derniers caractères alphanumériques du numéro de compte Powens', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const accounts = await listAccountsByName(user);
+
+    expect(accounts.get('Compte courant')?.numberLast4).toBe('4821');
+  });
+
+  it('à défaut de numéro, reprend les 4 derniers caractères alphanumériques de l’IBAN', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const accounts = await listAccountsByName(user);
+
+    expect(accounts.get('Livret')?.numberLast4).toBe('2606');
+  });
+
+  it('sans numéro ni IBAN, le numéro masqué vaut null', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const accounts = await listAccountsByName(user);
+
+    expect(accounts.get('Carte prépayée')?.numberLast4).toBeNull();
+  });
+
+  it('ne stocke ni ne renvoie jamais le numéro complet ni l’IBAN', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+    const current = (await listAccountsByName(user)).get('Compte courant')!;
+
+    const responses = [
+      await request(app).get('/api/bank/accounts').set(user.auth).expect(200),
+      await request(app).patch(`/api/bank/accounts/${current.id}`).set(user.auth).send({ analyzed: true }).expect(200),
+      await request(app).get('/api/bank/link').set(user.auth).expect(200),
+      await request(app).get('/api/transactions').set(user.auth).expect(200),
+    ];
+    const stored = await BankAccountModel.find({ userId: user.userId }).lean();
+
+    const exposed = [...responses.map((res) => JSON.stringify(res.body)), JSON.stringify(stored)].join('\n');
+    const fullValues = [CHECKING_NUMBER, CHECKING_IBAN, SAVINGS_IBAN].flatMap((value) => [
+      value,
+      value.replaceAll(' ', ''),
+    ]);
+    expect(fullValues.filter((value) => exposed.includes(value))).toEqual([]);
+  });
+
+  it('compte les opérations importées de chaque compte', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const accounts = await listAccountsByName(user);
+
+    expect(accounts.get('Compte courant')?.transactionCount).toBe(5);
+    expect(accounts.get('Livret')?.transactionCount).toBe(0);
+  });
+
+  it('ne compte plus une opération supprimée côté banque', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+    await deleteOldestSpotifyAtBank(user);
+
+    const accounts = await listAccountsByName(user);
+
+    expect(accounts.get('Compte courant')?.transactionCount).toBe(4);
+  });
+
+  it('la mise à jour d’un compte renvoie aussi son numéro masqué et son nombre d’opérations', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+    const current = (await listAccountsByName(user)).get('Compte courant')!;
+
+    const res = await request(app)
+      .patch(`/api/bank/accounts/${current.id}`)
+      .set(user.auth)
+      .send({ analyzed: false })
+      .expect(200);
+
+    expect(res.body).toMatchObject({ numberLast4: '4821', transactionCount: 5 });
+  });
+});
+
+describe('opérations d’un candidat importé de Powens', () => {
+  it('liste la date et le montant débité de chaque opération, de la plus récente à la plus ancienne', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+
+    const res = await request(app).get('/api/detection/candidates').set(user.auth).expect(200);
+
+    expect(res.body.items[0].operations).toEqual(
+      [...spotifyDates].reverse().map((date) => ({ id: expect.any(String), date, amountCents: -1099 })),
+    );
+  });
+
+  it('n’inclut plus une opération supprimée côté banque', async () => {
+    const user = await registerUser(app);
+    await connectBank(user);
+    await deleteOldestSpotifyAtBank(user);
+
+    const res = await request(app).get('/api/detection/candidates').set(user.auth).expect(200);
+
+    expect(res.body.items[0].operations).toEqual(
+      spotifyDates
+        .slice(1)
+        .reverse()
+        .map((date) => expect.objectContaining({ date })),
+    );
   });
 });
 

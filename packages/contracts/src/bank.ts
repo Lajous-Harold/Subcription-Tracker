@@ -67,6 +67,8 @@ export const BankAccountSchema = z.object({
   id: IdSchema,
   name: z.string(),
   type: z.string().nullable(),
+  /** 4 derniers caractères du numéro de compte, à défaut de l'IBAN : le numéro complet n'est jamais conservé. */
+  numberLast4: z.string().nullable(),
   currency: CurrencySchema,
   balanceCents: CentsSchema.nullable(),
   /** Décidé dans le consentement Powens. */
@@ -74,6 +76,8 @@ export const BankAccountSchema = z.object({
   /** Choix local de l'utilisateur, indépendant du consentement Powens. */
   analyzed: z.boolean(),
   lastUpdate: TimestampSchema.nullable(),
+  /** Opérations importées encore présentes à la banque. */
+  transactionCount: z.number().int(),
 });
 export type BankAccount = z.infer<typeof BankAccountSchema>;
 

@@ -135,6 +135,70 @@ describe('détection sur données fictives', () => {
   });
 });
 
+type OperationItem = { id: string; date: string; amountCents: number };
+
+type DemoCandidate = {
+  transactionIds: string[];
+  occurrences: number;
+  firstDate: string;
+  lastDate: string;
+  operations: OperationItem[];
+};
+
+async function demoNetflixCandidate(auth: Record<string, string>): Promise<DemoCandidate> {
+  const res = await request(app).get('/api/detection/candidates').set(auth).expect(200);
+  const netflix = res.body.items.find((c: { provider: { slug: string } | null }) => c.provider?.slug === 'netflix');
+  expect(netflix.operations).toEqual(expect.any(Array));
+  return netflix;
+}
+
+describe('opérations d’un candidat détecté', () => {
+  it('liste les opérations de la série, avec les mêmes identifiants que transactionIds', async () => {
+    const user = await registerUser(app);
+    await loadFixtures(user.auth);
+
+    const netflix = await demoNetflixCandidate(user.auth);
+
+    expect(netflix.operations).toHaveLength(netflix.occurrences);
+    expect(netflix.operations.map((operation) => operation.id).sort()).toEqual([...netflix.transactionIds].sort());
+  });
+
+  it('ordonne les opérations de la plus récente à la plus ancienne', async () => {
+    const user = await registerUser(app);
+    await loadFixtures(user.auth);
+
+    const { operations, firstDate, lastDate } = await demoNetflixCandidate(user.auth);
+
+    const dates = operations.map((operation) => operation.date);
+    expect(dates).toEqual([...dates].sort().reverse());
+    expect([dates[0], dates.at(-1)]).toEqual([lastDate, firstDate]);
+  });
+
+  it('donne le montant débité de chaque opération, négatif comme dans la liste des opérations', async () => {
+    const user = await registerUser(app);
+    await loadFixtures(user.auth);
+
+    const { operations } = await demoNetflixCandidate(user.auth);
+
+    // Netflix passe de 13,49 € à 15,99 € au cours de la série de démonstration.
+    expect([operations[0]?.amountCents, operations.at(-1)?.amountCents]).toEqual([-1599, -1349]);
+  });
+
+  it('n’inclut pas une opération supprimée, même avant une nouvelle détection', async () => {
+    const user = await registerUser(app);
+    await loadFixtures(user.auth);
+    const before = await demoNetflixCandidate(user.auth);
+    const deletedId = before.operations[0]!.id;
+    // Simule une opération supprimée côté banque, sans relancer la détection.
+    await TransactionModel.updateOne({ _id: deletedId }, { $set: { deletedAt: new Date() } });
+
+    const after = await demoNetflixCandidate(user.auth);
+
+    expect(after.operations.map((operation) => operation.id)).not.toContain(deletedId);
+    expect(after.operations).toHaveLength(before.occurrences - 1);
+  });
+});
+
 type CandidateItem = { id: string; label: string; provider: { slug: string } | null };
 
 async function listCandidates(auth: Record<string, string>, status = 'pending'): Promise<CandidateItem[]> {

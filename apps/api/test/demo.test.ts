@@ -19,6 +19,26 @@ describe('données de démonstration : /api/demo/data', () => {
     expect(removed.body.error.code).toBe('NOT_FOUND');
   });
 
+  it('le compte de démonstration compte ses opérations importées', async () => {
+    const app = testApp();
+    const user = await registerUser(app);
+    const loaded = await request(app).post('/api/demo/data').set(user.auth).expect(200);
+
+    const accounts = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
+
+    expect(accounts.body.items[0].transactionCount).toBe(loaded.body.imported);
+  });
+
+  it('le compte de démonstration n’a pas de numéro masqué', async () => {
+    const app = testApp();
+    const user = await registerUser(app);
+    await request(app).post('/api/demo/data').set(user.auth).expect(200);
+
+    const accounts = await request(app).get('/api/bank/accounts').set(user.auth).expect(200);
+
+    expect(accounts.body.items[0].numberLast4).toBeNull();
+  });
+
   it('en production, la route est absente par défaut', async () => {
     const prod = testApp({ APP_ENV: 'production' });
     const user = await registerUser(prod);
