@@ -60,7 +60,7 @@ Pour essayer la détection sans banque : créer un compte, puis ouvrir l'onglet 
 
 Pour développer l'API avec rechargement à chaud : `docker compose up -d mongo`, puis `npm run dev:api`.
 
-Connexion bancaire réelle et application Android : voir [docs/powens.md](docs/powens.md).
+Connexion bancaire réelle : renseigner `POWENS_DOMAIN`, `POWENS_CLIENT_ID` et `POWENS_CLIENT_SECRET` dans `apps/api/.env`, puis vérifier la configuration avec `npm run powens:smoke -w @subtracker/api`. Le parcours bancaire ne fonctionne pas dans Expo Go : l'adresse de retour `exp://` ne peut pas être autorisée chez Powens.
 
 ## Essayer l'application en ligne
 
@@ -95,7 +95,7 @@ packages/detection  Moteur de détection pur, sans I/O ni dépendance à Powens
 
 - Détection des abonnements mensuels uniquement, par des règles explicables. Le score de confiance est plafonné à 95 %.
 - Une seule connexion bancaire par utilisateur. Seuls les débits des comptes choisis sont importés ; aucun identifiant bancaire n'est stocké.
-- L'intégration Powens n'est validée que sur des réponses simulées.
+- L'intégration Powens est validée dans la sandbox avec une vraie banque ; les webhooks n'ont pas été essayés.
 - La résiliation n'est jamais automatique. 9 des 29 procédures du catalogue ont été vérifiées sur les pages officielles ; les autres sont signalées « non vérifiées ».
 - En production web, l'API et l'app doivent être sur le même site, car le refresh token voyage dans un cookie `SameSite=Strict`.
 - iOS n'a pas été testé.
