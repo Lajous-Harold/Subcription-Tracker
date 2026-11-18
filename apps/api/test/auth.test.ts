@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { SessionModel, UserModel } from '../src/modules/auth/models';
 import { registerUser, testApp } from './helpers';
 
@@ -51,17 +51,6 @@ describe('auth', () => {
     expect(res.body.email).toBe(user.email);
   });
 
-  it('tourne le refresh token et révoque la famille en cas de réutilisation', async () => {
-    const user = await registerUser(app);
-    const first = await request(app).post('/api/auth/refresh').send({ refreshToken: user.refreshToken }).expect(200);
-    expect(first.body.refreshToken).not.toBe(user.refreshToken);
-
-    // Réutilisation de l'ancien token : rejet + révocation de toute la famille.
-    await request(app).post('/api/auth/refresh').send({ refreshToken: user.refreshToken }).expect(401);
-    await request(app).post('/api/auth/refresh').send({ refreshToken: first.body.refreshToken }).expect(401);
-    expect(await SessionModel.countDocuments({ revokedAt: null })).toBe(0);
-  });
-
   it('web : refresh token en cookie httpOnly, jamais dans le corps', async () => {
     const res = await request(app)
       .post('/api/auth/register')
@@ -102,5 +91,103 @@ describe('auth', () => {
     await request(app).delete('/api/me').set(user.auth).send({ password: user.password }).expect(204);
     expect(await UserModel.countDocuments()).toBe(0);
     await request(app).post('/api/auth/login').send({ email: user.email, password: user.password }).expect(401);
+  });
+});
+
+// Seule la date est simulée : les minuteurs restent réels pour le pilote MongoDB et Supertest.
+function freezeClock() {
+  jest.useFakeTimers({
+    doNotFake: [
+      'hrtime',
+      'nextTick',
+      'performance',
+      'queueMicrotask',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+    ],
+  });
+}
+
+function advanceClockBy(milliseconds: number) {
+  jest.setSystemTime(Date.now() + milliseconds);
+}
+
+const refreshNative = (refreshToken: string) => request(app).post('/api/auth/refresh').send({ refreshToken });
+
+const refreshWeb = (cookie: string) =>
+  request(app).post('/api/auth/refresh').set('x-client-platform', 'web').set('Cookie', cookie).send({});
+
+function refreshCookieOf(res: request.Response): string {
+  const setCookie = res.headers['set-cookie'] as unknown as string[] | undefined;
+  return setCookie?.[0]?.split(';')[0] ?? '';
+}
+
+describe('auth : réutilisation d’un refresh token déjà remplacé', () => {
+  beforeEach(freezeClock);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('tourne le refresh token à chaque renouvellement', async () => {
+    const user = await registerUser(app);
+    const rotated = await refreshNative(user.refreshToken).expect(200);
+    expect(rotated.body.refreshToken).toEqual(expect.stringMatching(/\S/));
+    expect(rotated.body.refreshToken).not.toBe(user.refreshToken);
+  });
+
+  it('refuse avec REFRESH_SUPERSEDED un jeton remplacé il y a moins de 30 secondes', async () => {
+    const user = await registerUser(app);
+    await refreshNative(user.refreshToken).expect(200);
+    advanceClockBy(10_000);
+
+    const replay = await refreshNative(user.refreshToken).expect(401);
+    expect(replay.body.error?.code).toBe('REFRESH_SUPERSEDED');
+    expect(replay.body.error?.message).toEqual(expect.stringMatching(/\S/));
+  });
+
+  it('web : deux onglets rafraîchissent avec le même cookie, le jeton le plus récent reste utilisable', async () => {
+    const registered = await request(app)
+      .post('/api/auth/register')
+      .set('x-client-platform', 'web')
+      .send({ email: 'onglets@example.com', password: 'MotDePasse-Solide-42' })
+      .expect(201);
+    const sharedCookie = refreshCookieOf(registered);
+
+    const firstTab = await refreshWeb(sharedCookie).expect(200);
+    const latestCookie = refreshCookieOf(firstTab);
+    advanceClockBy(5_000);
+    await refreshWeb(sharedCookie).expect(401);
+
+    const resumed = await refreshWeb(latestCookie).expect(200);
+    expect(resumed.body.accessToken).toEqual(expect.stringMatching(/\S/));
+  });
+
+  it('au-delà de 30 secondes, la réutilisation d’un jeton remplacé révoque toute la famille', async () => {
+    const user = await registerUser(app);
+    const rotated = await refreshNative(user.refreshToken).expect(200);
+    advanceClockBy(31_000);
+
+    const replay = await refreshNative(user.refreshToken).expect(401);
+    expect(replay.body.error?.code).toBe('UNAUTHORIZED');
+    await refreshNative(rotated.body.refreshToken).expect(401);
+    expect(await SessionModel.countDocuments({ revokedAt: null })).toBe(0);
+  });
+
+  it('refuse avec UNAUTHORIZED un jeton révoqué par déconnexion, même dans les 30 secondes', async () => {
+    const user = await registerUser(app);
+    await request(app).post('/api/auth/logout').send({ refreshToken: user.refreshToken }).expect(204);
+    advanceClockBy(5_000);
+
+    const res = await refreshNative(user.refreshToken).expect(401);
+    expect(res.body.error?.code).toBe('UNAUTHORIZED');
+  });
+
+  it('refuse avec UNAUTHORIZED un jeton inconnu', async () => {
+    const res = await refreshNative('jeton-qui-n-a-jamais-ete-emis').expect(401);
+    expect(res.body.error?.code).toBe('UNAUTHORIZED');
   });
 });

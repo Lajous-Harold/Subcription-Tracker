@@ -3,6 +3,7 @@ import {
   todayIso,
   type AcceptCandidateBody,
   type Candidate,
+  type CandidateOperation,
   type CandidateStatus,
   type DetectionRunResponse,
   type SubscriptionDetail,
@@ -176,9 +177,29 @@ export async function runDetection(userId: string, today = todayIso()): Promise<
   return { analyzedTransactions: txDocs.length, created, updated, attachedPayments, pending };
 }
 
+/** Relues à chaque lecture : une opération supprimée à la banque disparaît sans attendre une nouvelle détection. */
+async function loadPresentOperations(userId: string, docs: CandidateDoc[]): Promise<Map<string, CandidateOperation>> {
+  const transactions = await TransactionModel.find(
+    { userId, _id: { $in: docs.flatMap((doc) => doc.transactionIds) }, deletedAt: null },
+    { date: 1, amountCents: 1 },
+  ).lean<Pick<TransactionDoc, '_id' | 'date' | 'amountCents'>[]>();
+  return new Map(
+    transactions.map((tx) => [
+      tx._id.toString(),
+      { id: tx._id.toString(), date: tx.date, amountCents: tx.amountCents },
+    ]),
+  );
+}
+
+function operationsOf(doc: CandidateDoc, presentOperations: Map<string, CandidateOperation>): CandidateOperation[] {
+  return doc.transactionIds
+    .flatMap((id) => presentOperations.get(id.toString()) ?? [])
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Candidate[]> {
   const providerIds = [...new Set(docs.map((doc) => doc.providerId?.toString()).filter(Boolean))] as string[];
-  const [providers, manualSubscriptions] = await Promise.all([
+  const [providers, manualSubscriptions, presentOperations] = await Promise.all([
     ProviderModel.find({ _id: { $in: providerIds } }, { slug: 1, name: 1, category: 1 }).lean<ProviderDoc[]>(),
     providerIds.length
       ? SubscriptionModel.find(
@@ -191,6 +212,7 @@ async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Ca
           { providerId: 1 },
         ).lean<SubscriptionDoc[]>()
       : Promise.resolve([] as SubscriptionDoc[]),
+    loadPresentOperations(userId, docs),
   ]);
   const providerById = new Map(providers.map((doc) => [doc._id.toString(), toProviderSummary(doc)]));
   return docs.map((doc) => {
@@ -219,6 +241,7 @@ async function toCandidateDtos(userId: string, docs: CandidateDoc[]): Promise<Ca
       stale: doc.stale,
       status: doc.status,
       transactionIds: doc.transactionIds.map((id) => id.toString()),
+      operations: operationsOf(doc, presentOperations),
       subscriptionId: doc.subscriptionId?.toString() ?? null,
       suggestedSubscriptionId: mergeSuggestion?._id.toString() ?? null,
       updatedAt: doc.updatedAt.toISOString(),

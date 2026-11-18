@@ -38,6 +38,8 @@ const bankAccountSchema = new Schema(
     externalId: { type: String, required: true },
     name: { type: String, required: true },
     type: { type: String, default: null },
+    /** Minimisation des données : seuls les 4 derniers caractères du numéro (ou de l'IBAN) sont conservés. */
+    numberLast4: { type: String, default: null },
     currency: { type: String, default: 'EUR' },
     balanceCents: { type: Number, default: null },
     /** Partagé via le consentement Powens (compte non désactivé). */

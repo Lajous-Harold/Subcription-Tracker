@@ -39,6 +39,8 @@ interface PowensAccount {
   name?: string | null;
   original_name?: string | null;
   type?: string | null;
+  number?: string | null;
+  iban?: string | null;
   balance?: number | null;
   currency?: { id?: string } | null;
   disabled?: string | null;

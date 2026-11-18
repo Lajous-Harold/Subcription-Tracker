@@ -8,6 +8,14 @@ export type ConfidenceLevel = z.infer<typeof ConfidenceLevelSchema>;
 export const CandidateStatusSchema = z.enum(['pending', 'accepted', 'rejected', 'dismissed']);
 export type CandidateStatus = z.infer<typeof CandidateStatusSchema>;
 
+export const CandidateOperationSchema = z.object({
+  id: IdSchema,
+  date: IsoDateSchema,
+  /** Débit négatif, tel qu'importé de la banque. */
+  amountCents: CentsSchema,
+});
+export type CandidateOperation = z.infer<typeof CandidateOperationSchema>;
+
 export const CandidateSchema = z.object({
   id: IdSchema,
   label: z.string(),
@@ -34,6 +42,8 @@ export const CandidateSchema = z.object({
   stale: z.boolean(),
   status: CandidateStatusSchema,
   transactionIds: z.array(IdSchema),
+  /** Opérations de la série encore présentes à la banque, de la plus récente à la plus ancienne. */
+  operations: z.array(CandidateOperationSchema),
   subscriptionId: IdSchema.nullable(),
   /** Abonnement manuel existant qui pourrait correspondre (même fournisseur). */
   suggestedSubscriptionId: IdSchema.nullable(),

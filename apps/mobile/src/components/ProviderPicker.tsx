@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, List, Portal, Searchbar, TextInput } from 'react-native-paper';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Dialog, List, Portal, Text, TextInput } from 'react-native-paper';
 import type { ProviderSummary } from '@subtracker/contracts';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/query';
-import { Muted, styles } from './ui';
+import { useBrand } from '@/lib/theme';
+import { AppButton, DialogActions } from './AppButton';
+import { controlStyles, Muted, ServiceMonogram, styles as uiStyles } from './ui';
 
 export interface ProviderValue {
   provider: ProviderSummary | null;
@@ -19,6 +21,7 @@ export function ProviderPicker({
   value: ProviderValue;
   onChange: (value: ProviderValue) => void;
 }) {
+  const brand = useBrand();
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: providers = [] } = useQuery({ queryKey: queryKeys.providers(), queryFn: () => api.providers() });
@@ -27,66 +30,90 @@ export function ProviderPicker({
   );
 
   return (
-    <View style={{ gap: 8 }}>
+    <View style={styles.picker}>
       {value.provider ? (
-        <Chip
-          icon="store"
-          onClose={() => onChange({ provider: null, customName: '' })}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          {value.provider.name}
-        </Chip>
+        <View style={[styles.selected, { borderColor: brand.colors.border, borderRadius: brand.radii.control }]}>
+          <ServiceMonogram name={value.provider.name} size={32} />
+          <Text variant="bodyLarge" numberOfLines={1} style={styles.selectedName}>
+            {value.provider.name}
+          </Text>
+          <AppButton
+            variant="ghost"
+            onPress={() => onChange({ provider: null, customName: '' })}
+            accessibilityLabel={`Retirer le fournisseur ${value.provider.name}`}
+          >
+            Retirer
+          </AppButton>
+        </View>
       ) : (
         <TextInput
-          label="Fournisseur (nom libre, facultatif)"
+          label="Fournisseur (facultatif)"
           mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
           value={value.customName}
           onChangeText={(customName) => onChange({ provider: null, customName })}
         />
       )}
-      <Button
-        mode="outlined"
+      <AppButton
+        variant="secondary"
         icon="format-list-bulleted"
         onPress={() => setCatalogOpen(true)}
-        style={{ alignSelf: 'flex-start' }}
+        style={styles.catalogButton}
       >
         {value.provider ? 'Changer de fournisseur' : 'Choisir dans le catalogue'}
-      </Button>
+      </AppButton>
       <Portal>
-        <Dialog
-          visible={catalogOpen}
-          onDismiss={() => setCatalogOpen(false)}
-          style={[styles.dialog, { maxWidth: 520 }]}
-        >
+        <Dialog visible={catalogOpen} onDismiss={() => setCatalogOpen(false)} style={[uiStyles.dialog, styles.dialog]}>
           <Dialog.Title>Fournisseur</Dialog.Title>
           <Dialog.Content>
-            <Searchbar placeholder="Rechercher" value={search} onChangeText={setSearch} />
+            <TextInput
+              label="Rechercher"
+              mode="outlined"
+              outlineStyle={controlStyles.fieldOutline}
+              left={<TextInput.Icon icon="magnify" />}
+              value={search}
+              onChangeText={setSearch}
+            />
           </Dialog.Content>
-          <Dialog.ScrollArea style={{ maxHeight: 360, paddingHorizontal: 0 }}>
+          <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView>
               {matchingProviders.map((provider) => (
                 <List.Item
                   key={provider.id}
                   title={provider.name}
+                  style={styles.option}
                   onPress={() => {
                     onChange({ provider, customName: '' });
                     setCatalogOpen(false);
                   }}
-                  left={(props) => <List.Icon {...props} icon="store-outline" />}
+                  left={() => <ServiceMonogram name={provider.name} size={32} />}
                 />
               ))}
               {matchingProviders.length === 0 ? (
-                <View style={{ padding: 16 }}>
+                <View style={styles.notFound}>
                   <Muted>Introuvable ? Fermez et saisissez un nom libre.</Muted>
                 </View>
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => setCatalogOpen(false)}>Fermer</Button>
-          </Dialog.Actions>
+          <DialogActions>
+            <AppButton variant="ghost" onPress={() => setCatalogOpen(false)}>
+              Fermer
+            </AppButton>
+          </DialogActions>
         </Dialog>
       </Portal>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  picker: { gap: 8 },
+  selected: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, paddingLeft: 12 },
+  selectedName: { flex: 1 },
+  catalogButton: { alignSelf: 'flex-start' },
+  dialog: { maxWidth: 520 },
+  scrollArea: { maxHeight: 360, paddingHorizontal: 0 },
+  option: { minHeight: 48, paddingHorizontal: 16, justifyContent: 'center' },
+  notFound: { padding: 16 },
+});

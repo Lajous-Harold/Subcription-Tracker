@@ -131,6 +131,15 @@ describe('detectSubscriptions — cas limites', () => {
     expect(candidate?.reasons.join(' ')).toContain('Certains mois sans paiement');
   });
 
+  it('date la période observée au format de l’app (« 1 mai 2026 »)', () => {
+    const txs = ['2026-05-01', '2026-06-01', '2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01', '2026-11-01'].map(
+      (date) => base({ date }),
+    );
+    const [candidate] = detectSubscriptions(txs, [], { today: '2026-11-10' });
+    // Espaces insécables : une date ne se coupe pas en fin de ligne.
+    expect(candidate?.reasons[0]).toBe('7 paiements entre le 1 mai 2026 et le 1 nov. 2026');
+  });
+
   it('borne le jour au dernier jour du mois pour une échéance au 31', () => {
     const txs = ['2026-07-31', '2026-08-31', '2026-09-30', '2026-10-31'].map((date) => base({ date }));
     const [candidate] = detectSubscriptions(txs, [], { today: '2026-11-02' });

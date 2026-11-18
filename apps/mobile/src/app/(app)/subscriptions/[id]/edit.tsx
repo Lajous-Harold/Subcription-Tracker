@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import type { UpdateSubscriptionBody } from '@subtracker/contracts';
-import { ErrorState, Loading, Screen } from '@/components/ui';
+import { ErrorState, FormColumn, Loading, Screen } from '@/components/ui';
 import { useToast } from '@/components/toast';
+import { leaveTo } from '@/features/subscriptions/navigation';
 import { SubscriptionForm, type SubscriptionFormValues } from '@/features/subscriptions/SubscriptionForm';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/http';
@@ -38,7 +39,7 @@ export default function EditSubscriptionScreen() {
     onSuccess: () => {
       invalidateSubscriptionData(id);
       toast.show('Modifications enregistrées');
-      router.back();
+      leaveTo(`/subscriptions/${id}`);
     },
   });
 
@@ -47,13 +48,15 @@ export default function EditSubscriptionScreen() {
 
   return (
     <Screen>
-      <SubscriptionForm
-        initial={data}
-        submitLabel="Enregistrer"
-        submitting={saveChanges.isPending}
-        serverError={saveChanges.error ? errorMessage(saveChanges.error) : null}
-        onSubmit={(values) => saveChanges.mutate(values)}
-      />
+      <FormColumn>
+        <SubscriptionForm
+          initial={data}
+          submitLabel="Enregistrer les modifications"
+          submitting={saveChanges.isPending}
+          serverError={saveChanges.error ? errorMessage(saveChanges.error) : null}
+          onSubmit={(values) => saveChanges.mutate(values)}
+        />
+      </FormColumn>
     </Screen>
   );
 }

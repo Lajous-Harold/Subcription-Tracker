@@ -27,7 +27,9 @@ COPY apps/mobile ./apps/mobile
 ARG ENABLE_DEMO_DATA=false
 # URL relative : le bundle appelle l'API qui le sert, sur la même origine.
 ENV CI=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_API_URL=/api EXPO_PUBLIC_ENABLE_DEMO=${ENABLE_DEMO_DATA}
-RUN cd apps/mobile && npx expo export --platform web
+# Metro lance par défaut un worker par cœur ; en parallèle des autres étapes, le build dépassait
+# les 8 Go de la machine de build Render. Deux workers suffisent pour un seul bundle web.
+RUN cd apps/mobile && npx expo export --platform web --max-workers 2
 
 FROM base AS prod-deps
 RUN npm ci -w @subtracker/api --omit=dev --ignore-scripts && npm rebuild argon2

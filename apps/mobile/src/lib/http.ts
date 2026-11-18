@@ -1,4 +1,9 @@
-import { CLIENT_PLATFORM_HEADER, type ApiErrorResponse, type AuthResponse } from '@subtracker/contracts';
+import {
+  CLIENT_PLATFORM_HEADER,
+  REFRESH_SUPERSEDED_ERROR_CODE,
+  type ApiErrorResponse,
+  type AuthResponse,
+} from '@subtracker/contracts';
 import { API_URL, PLATFORM } from './config';
 import { readRefreshToken, writeRefreshToken } from './storage';
 
@@ -83,14 +88,25 @@ export async function applyAuthResponse(response: AuthResponse | null): Promise<
   listeners.forEach((listener) => listener(response));
 }
 
+async function requestRefresh(): Promise<AuthResponse | null> {
+  const refreshToken = await readRefreshToken();
+  if (PLATFORM === 'native' && !refreshToken) return null;
+  return authRequest('/auth/refresh', PLATFORM === 'native' ? { refreshToken } : {});
+}
+
+const isRefreshSuperseded = (error: unknown) =>
+  error instanceof ApiError && error.code === REFRESH_SUPERSEDED_ERROR_CODE;
+
 // Un seul renouvellement à la fois, partagé par les requêtes concurrentes : le refresh token est rotatif,
-// et présenter deux fois le même révoquerait la session.
+// et présenter deux fois le même révoquerait la session. Sur le web, un autre onglet peut l'avoir déjà tourné :
+// le cookie porte alors le nouveau jeton, d'où un unique réessai.
 export function refreshSession(): Promise<AuthResponse | null> {
   refreshInFlight ??= (async () => {
     try {
-      const refreshToken = await readRefreshToken();
-      if (PLATFORM === 'native' && !refreshToken) return null;
-      const response = await authRequest('/auth/refresh', PLATFORM === 'native' ? { refreshToken } : {});
+      const response = await requestRefresh().catch((error: unknown) => {
+        if (isRefreshSuperseded(error)) return requestRefresh();
+        throw error;
+      });
       await applyAuthResponse(response);
       return response;
     } catch (error) {

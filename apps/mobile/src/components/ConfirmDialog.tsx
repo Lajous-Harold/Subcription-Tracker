@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
-import { DESTRUCTIVE_COLOR } from '@/lib/theme';
+import { Dialog, Portal, Text } from 'react-native-paper';
+import { AppButton, DialogActions } from './AppButton';
 import { styles } from './ui';
 
 export function ConfirmDialog({
@@ -32,17 +32,14 @@ export function ConfirmDialog({
           <Text variant="bodyMedium">{message}</Text>
           {children}
         </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={onDismiss}>Annuler</Button>
-          <Button
-            onPress={onConfirm}
-            loading={loading}
-            disabled={loading}
-            textColor={destructive ? DESTRUCTIVE_COLOR : undefined}
-          >
+        <DialogActions>
+          <AppButton variant="ghost" onPress={onDismiss}>
+            Annuler
+          </AppButton>
+          <AppButton variant={destructive ? 'destructiveGhost' : 'ghost'} onPress={onConfirm} loading={loading}>
             {confirmLabel}
-          </Button>
-        </Dialog.Actions>
+          </AppButton>
+        </DialogActions>
       </Dialog>
     </Portal>
   );

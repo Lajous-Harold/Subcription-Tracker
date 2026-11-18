@@ -19,7 +19,17 @@ export function addMonthsClamped(value: string, months: number, preferredDay: nu
   return toIsoDate(new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), day)));
 }
 
+const FR_MEDIUM_DATE = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+/**
+ * Même rendu que `formatMediumDate` de l'app (« 3 nov. 2026 ») : les raisons s'affichent telles quelles.
+ * Espaces insécables : dans une phrase, la date ne se coupe pas en fin de ligne.
+ */
 export function formatFrDate(value: string): string {
-  const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
+  return FR_MEDIUM_DATE.format(parseIsoDate(value)).replace(/ /g, ' ');
 }

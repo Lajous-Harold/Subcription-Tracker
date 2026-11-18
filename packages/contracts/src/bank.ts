@@ -63,10 +63,16 @@ export const CompleteConnectSessionBodySchema = z.strictObject({
 });
 export type CompleteConnectSessionBody = z.infer<typeof CompleteConnectSessionBodySchema>;
 
+/** `fixture` : données de démonstration chargées localement, sans Powens. */
+export const BankDataSourceSchema = z.enum(['powens', 'fixture']);
+
 export const BankAccountSchema = z.object({
   id: IdSchema,
+  source: BankDataSourceSchema,
   name: z.string(),
   type: z.string().nullable(),
+  /** 4 derniers caractères du numéro de compte, à défaut de l'IBAN : le numéro complet n'est jamais conservé. */
+  numberLast4: z.string().nullable(),
   currency: CurrencySchema,
   balanceCents: CentsSchema.nullable(),
   /** Décidé dans le consentement Powens. */
@@ -74,6 +80,8 @@ export const BankAccountSchema = z.object({
   /** Choix local de l'utilisateur, indépendant du consentement Powens. */
   analyzed: z.boolean(),
   lastUpdate: TimestampSchema.nullable(),
+  /** Opérations importées encore présentes à la banque. */
+  transactionCount: z.number().int(),
 });
 export type BankAccount = z.infer<typeof BankAccountSchema>;
 
@@ -86,7 +94,7 @@ export type UpdateBankAccountBody = z.infer<typeof UpdateBankAccountBodySchema>;
 export const TransactionSchema = z.object({
   id: IdSchema,
   accountId: IdSchema,
-  source: z.enum(['powens', 'fixture']),
+  source: BankDataSourceSchema,
   date: IsoDateSchema,
   amountCents: CentsSchema,
   currency: CurrencySchema,

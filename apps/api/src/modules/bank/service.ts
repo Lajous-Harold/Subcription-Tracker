@@ -45,17 +45,37 @@ export function toBankLinkDto(link: BankLinkDoc, now = new Date()): BankLink {
   };
 }
 
-function toBankAccountDto(account: BankAccountDoc): BankAccount {
+function toBankAccountDto(account: BankAccountDoc, transactionCount: number): BankAccount {
   return {
     id: account._id.toString(),
+    source: account.source,
     name: account.name,
     type: account.type ?? null,
+    numberLast4: account.numberLast4 ?? null,
     currency: account.currency ?? 'EUR',
     balanceCents: account.balanceCents ?? null,
     sharedWithApp: account.sharedWithApp,
     analyzed: account.analyzed,
     lastUpdate: account.lastUpdate?.toISOString() ?? null,
+    transactionCount,
   };
+}
+
+async function countTransactionsByAccount(
+  userId: string,
+  accounts: Pick<BankAccountDoc, '_id'>[],
+): Promise<Map<string, number>> {
+  const counts = await TransactionModel.aggregate<{ _id: Types.ObjectId; count: number }>([
+    {
+      $match: {
+        userId: new Types.ObjectId(userId),
+        accountId: { $in: accounts.map((account) => account._id) },
+        deletedAt: null,
+      },
+    },
+    { $group: { _id: '$accountId', count: { $sum: 1 } } },
+  ]);
+  return new Map(counts.map(({ _id, count }) => [_id.toString(), count]));
 }
 
 /** L'utilisateur Powens n'est créé qu'au premier parcours Webview. */
@@ -186,7 +206,8 @@ export async function completeConnectSession(userId: string, body: CompleteConne
 
 export async function listAccounts(userId: string): Promise<BankAccount[]> {
   const accounts = await BankAccountModel.find({ userId }).sort({ source: 1, name: 1 }).lean<BankAccountDoc[]>();
-  return accounts.map(toBankAccountDto);
+  const transactionCounts = await countTransactionsByAccount(userId, accounts);
+  return accounts.map((account) => toBankAccountDto(account, transactionCounts.get(account._id.toString()) ?? 0));
 }
 
 export async function updateAccount(userId: string, accountId: string, analyzed: boolean): Promise<BankAccount> {
@@ -198,7 +219,8 @@ export async function updateAccount(userId: string, accountId: string, analyzed:
   ).lean<BankAccountDoc>();
   if (!account) throw notFound('Compte');
   if (analyzed && account.source === 'powens') scheduleSync(userId, { reason: 'account_enabled', fullResync: true });
-  return toBankAccountDto(account);
+  const transactionCount = await TransactionModel.countDocuments({ userId, accountId: account._id, deletedAt: null });
+  return toBankAccountDto(account, transactionCount);
 }
 
 /** Les abonnements suivis sont conservés. */

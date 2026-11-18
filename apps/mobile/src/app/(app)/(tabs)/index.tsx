@@ -1,129 +1,114 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { View } from 'react-native';
-import { Banner, Button, Card, List, Text } from 'react-native-paper';
-import { EmptyState, ErrorState, Loading, Muted, OriginChip, Screen, SectionTitle, styles } from '@/components/ui';
+import { StyleSheet, Text, View } from 'react-native';
+import { AppButton } from '@/components/AppButton';
+import { EmptyState, ErrorState, Loading, Muted, Panel, Screen } from '@/components/ui';
+import { DashboardNotices } from '@/features/dashboard/DashboardNotices';
+import { DashboardIndicators, MonthHero, ReviewPrompt } from '@/features/dashboard/SummaryPanels';
+import { SyncHint } from '@/features/dashboard/SyncHint';
+import { UpcomingPayments } from '@/features/dashboard/UpcomingPayments';
+import { useBankPullToSync } from '@/features/dashboard/useBankPullToSync';
+import { ADD_SUBSCRIPTION_LABEL, openNewSubscription } from '@/features/subscriptions-list/add-subscription';
+import { SubscriptionsTablePanel } from '@/features/subscriptions-list/SubscriptionsTablePanel';
 import { api } from '@/lib/api';
-import { BANK_STATUS_LABELS, formatMoney, formatShortDate, needsBankReconnection } from '@/lib/format';
+import { useLayoutMode } from '@/lib/layout';
 import { queryKeys } from '@/lib/query';
+import { useBrand } from '@/lib/theme';
+
+function NoSubscriptions({ showAddButton }: { showAddButton: boolean }) {
+  return (
+    <Panel>
+      <EmptyState
+        title="Aucun abonnement suivi"
+        description="Déclarez vos abonnements à la main, ou connectez votre banque pour qu’ils soient détectés."
+      >
+        {showAddButton ? (
+          <AppButton icon="plus" onPress={openNewSubscription}>
+            {ADD_SUBSCRIPTION_LABEL}
+          </AppButton>
+        ) : null}
+        <AppButton variant="secondary" icon="bank-plus" onPress={() => router.push('/bank')}>
+          Connecter ma banque
+        </AppButton>
+      </EmptyState>
+    </Panel>
+  );
+}
+
+function TrackedSubscriptionsPanel() {
+  const { colors, fonts } = useBrand();
+  const { data, error, isLoading, refetch } = useQuery({
+    queryKey: queryKeys.subscriptions,
+    queryFn: () => api.subscriptions(),
+  });
+  if (isLoading) return <Loading />;
+  if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
+  return (
+    <SubscriptionsTablePanel
+      subscriptions={data}
+      statusFilter="tracked"
+      heading={
+        <Text
+          accessibilityRole="header"
+          style={[styles.panelTitle, { fontFamily: fonts.displayBold, color: colors.ink }]}
+        >
+          Abonnements
+        </Text>
+      }
+    />
+  );
+}
 
 export default function DashboardScreen() {
-  const { data, error, isLoading, refetch, isRefetching } = useQuery({
+  const layoutMode = useLayoutMode();
+  const { data, error, isLoading, refetch } = useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: api.dashboard,
   });
+  const bankSync = useBankPullToSync();
 
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
-  const { bank } = data;
+  const isWide = layoutMode === 'wide';
+  const hasSubscriptions = data.trackedCount > 0;
+  const hasPendingDetections = data.pendingCandidates > 0;
+  const { linkedBank } = bankSync;
 
   return (
-    <Screen refreshing={isRefetching} onRefresh={refetch}>
-      {data.pendingCandidates > 0 ? (
-        <Banner
-          visible
-          icon="magnify-scan"
-          actions={[{ label: 'Vérifier', onPress: () => router.push('/candidates') }]}
-        >
-          {data.pendingCandidates === 1
-            ? '1 abonnement détecté attend votre confirmation.'
-            : `${data.pendingCandidates} abonnements détectés attendent votre confirmation.`}
-        </Banner>
-      ) : null}
-      {bank && needsBankReconnection(bank) ? (
-        <Banner visible icon="bank-remove" actions={[{ label: 'Voir', onPress: () => router.push('/bank') }]}>
-          {bank.consentExpiringSoon
-            ? 'Votre autorisation bancaire expire bientôt : renouvelez-la pour continuer la détection.'
-            : `Connexion bancaire : ${BANK_STATUS_LABELS[bank.status].toLowerCase()}.`}
-        </Banner>
-      ) : null}
-      {data.missingPayments > 0 ? (
-        <Banner
-          visible
-          icon="calendar-alert"
-          actions={[{ label: 'Voir', onPress: () => router.push('/subscriptions') }]}
-        >
-          {`${data.missingPayments} abonnement(s) sans paiement observé à l’échéance attendue. Ce n’est pas une preuve de résiliation.`}
-        </Banner>
-      ) : null}
+    <Screen refreshing={bankSync.refreshing} onRefresh={() => void bankSync.refresh()}>
+      <View style={isWide ? styles.wideSections : styles.compactSections}>
+        {!isWide && linkedBank ? (
+          <SyncHint bank={linkedBank} syncing={bankSync.syncing} onSync={() => void bankSync.refresh()} />
+        ) : null}
 
-      {data.trackedCount === 0 ? (
-        <Card>
-          <EmptyState
-            title="Aucun abonnement suivi"
-            description="Déclarez vos abonnements à la main, ou connectez votre banque pour qu’ils soient détectés."
-          >
-            <Button mode="contained" icon="plus" onPress={() => router.push('/subscriptions/new')}>
-              Ajouter un abonnement
-            </Button>
-            <Button mode="outlined" icon="bank-plus" onPress={() => router.push('/bank')}>
-              Connecter ma banque
-            </Button>
-          </EmptyState>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <Card.Content style={{ gap: 6 }}>
-              <Muted>Coût mensuel estimé</Muted>
-              <Text variant="displaySmall">{formatMoney(data.monthly.totalCents, data.currency)}</Text>
-              <View style={styles.row}>
-                <OriginChip origin="observed" />
-                <Text variant="bodyMedium">{formatMoney(data.monthly.observedCents, data.currency)}</Text>
-                <OriginChip origin="declared" />
-                <Text variant="bodyMedium">{formatMoney(data.monthly.declaredCents, data.currency)}</Text>
-              </View>
-              {data.excludedOtherCurrencies.length > 0 ? (
-                <Muted>
-                  {`Hors total : ${data.excludedOtherCurrencies.map((excluded) => `${excluded.count} en ${excluded.currency}`).join(', ')}.`}
-                </Muted>
-              ) : null}
-            </Card.Content>
-          </Card>
-          <View style={[styles.row, { alignItems: 'stretch' }]}>
-            <Card style={{ flex: 1, minWidth: 150 }}>
-              <Card.Content>
-                <Muted>Abonnements suivis</Muted>
-                <Text variant="headlineMedium">{data.trackedCount}</Text>
-              </Card.Content>
-            </Card>
-            <Card style={{ flex: 1, minWidth: 150 }}>
-              <Card.Content style={{ gap: 4 }}>
-                <View style={styles.between}>
-                  <Muted>Projection annuelle</Muted>
-                  <OriginChip origin="estimated" />
-                </View>
-                <Text variant="headlineMedium">{formatMoney(data.annualProjectionCents, data.currency)}</Text>
-              </Card.Content>
-            </Card>
-          </View>
+        {hasSubscriptions && isWide ? <DashboardIndicators summary={data} /> : null}
+        {hasSubscriptions && !isWide ? <MonthHero summary={data} /> : null}
+        {hasPendingDetections && !(hasSubscriptions && isWide) ? (
+          <ReviewPrompt pendingCount={data.pendingCandidates} />
+        ) : null}
 
-          <SectionTitle>Prochaines échéances (30 jours)</SectionTitle>
-          <Card>
-            {data.upcoming.length === 0 ? (
-              <Card.Content>
-                <Muted>Aucune échéance connue dans les 30 prochains jours.</Muted>
-              </Card.Content>
-            ) : (
-              data.upcoming.map((item) => (
-                <List.Item
-                  key={item.subscriptionId}
-                  title={item.label}
-                  description={`${formatShortDate(item.date)}${item.dateOrigin === 'estimated' ? ' (estimée)' : ''}`}
-                  left={(props) => <List.Icon {...props} icon="calendar" />}
-                  right={() => <Text variant="titleMedium">{formatMoney(item.amountCents, item.currency)}</Text>}
-                  onPress={() => router.push(`/subscriptions/${item.subscriptionId}`)}
-                />
-              ))
-            )}
-          </Card>
-        </>
-      )}
-      <Muted style={{ textAlign: 'center', marginTop: 8 }}>
-        Les montants observés proviennent de vos opérations bancaires ; une opération ne prouve pas qu’un abonnement est
-        actif.
-      </Muted>
+        <DashboardNotices summary={data} />
+
+        {!hasSubscriptions ? <NoSubscriptions showAddButton={!isWide} /> : null}
+        {hasSubscriptions && isWide ? <TrackedSubscriptionsPanel /> : null}
+        {hasSubscriptions && !isWide ? <UpcomingPayments upcoming={data.upcoming} /> : null}
+
+        {isWide ? null : (
+          <Muted style={styles.disclaimer}>
+            Les montants observés proviennent de vos opérations bancaires ; une opération ne prouve pas qu’un abonnement
+            est actif.
+          </Muted>
+        )}
+      </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  /** La maquette du tableau de bord espace davantage ses blocs que l'accueil mobile. */
+  wideSections: { gap: 24 },
+  compactSections: { gap: 16 },
+  panelTitle: { fontSize: 20, lineHeight: 26 },
+  disclaimer: { textAlign: 'center', marginTop: 8 },
+});

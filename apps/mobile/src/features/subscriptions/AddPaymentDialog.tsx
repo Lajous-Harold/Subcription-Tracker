@@ -1,8 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Button, Dialog, Portal, TextInput } from 'react-native-paper';
+import { StyleSheet } from 'react-native';
+import { Dialog, Portal, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, todayIso } from '@subtracker/contracts';
-import { ErrorText, styles } from '@/components/ui';
+import { AppButton, DialogActions } from '@/components/AppButton';
+import { DateField } from '@/components/DateField';
+import { ErrorText, controlStyles, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
@@ -44,7 +47,7 @@ export function AddPaymentDialog({
 
   const submit = () => {
     const cents = parseAmountToCents(amount);
-    if (!IsoDateSchema.safeParse(date).success) return setError('Date au format AAAA-MM-JJ');
+    if (!IsoDateSchema.safeParse(date).success) return setError('Choisissez la date du paiement');
     if (cents === null || cents <= 0) return setError('Montant invalide');
     setError(null);
     addPayment.mutate({ date, amountCents: cents });
@@ -54,25 +57,38 @@ export function AddPaymentDialog({
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Ajouter un paiement</Dialog.Title>
-        <Dialog.Content style={{ gap: 8 }}>
-          <TextInput label="Date (AAAA-MM-JJ)" mode="outlined" value={date} onChangeText={setDate} />
+        <Dialog.Content style={dialogStyles.content}>
+          <DateField label="Date" value={date} onChange={setDate} />
           <TextInput
             label={`Montant (${currency})`}
             mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
           />
-          <TextInput label="Note (facultatif)" mode="outlined" value={note} onChangeText={setNote} />
+          <TextInput
+            label="Note (facultatif)"
+            mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
+            value={note}
+            onChangeText={setNote}
+          />
           <ErrorText message={error} />
         </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={onDismiss}>Annuler</Button>
-          <Button onPress={submit} loading={addPayment.isPending} disabled={addPayment.isPending}>
-            Ajouter
-          </Button>
-        </Dialog.Actions>
+        <DialogActions>
+          <AppButton variant="ghost" onPress={onDismiss}>
+            Annuler
+          </AppButton>
+          <AppButton onPress={submit} loading={addPayment.isPending}>
+            Ajouter le paiement
+          </AppButton>
+        </DialogActions>
       </Dialog>
     </Portal>
   );
 }
+
+const dialogStyles = StyleSheet.create({
+  content: { gap: 8 },
+});

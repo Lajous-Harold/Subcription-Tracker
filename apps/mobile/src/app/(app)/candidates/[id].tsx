@@ -1,15 +1,40 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Button, Card, TextInput } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
 import { parseAmountToCents, type AcceptCandidateBody, type Candidate } from '@subtracker/contracts';
+import { AppButton } from '@/components/AppButton';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
 import { useToast } from '@/components/toast';
-import { EmptyState, ErrorState, ErrorText, Loading, Muted, Screen } from '@/components/ui';
+import {
+  ConfidenceMeter,
+  controlStyles,
+  EmptyState,
+  ErrorState,
+  ErrorText,
+  Loading,
+  Muted,
+  Panel,
+  Screen,
+  ServiceMonogram,
+} from '@/components/ui';
+import { describeCandidateSource } from '@/features/review/review-session';
+import {
+  AmountText,
+  MergeNotice,
+  monthlyAmount,
+  OperationList,
+  ReasonList,
+  SectionLabel,
+  StalePill,
+} from '@/features/review/ReviewParts';
+import { useAccountNames } from '@/features/review/useReviewQueue';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { invalidateDetectionData, queryKeys } from '@/lib/query';
+import { useBrand } from '@/lib/theme';
 
 export default function CandidateReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,11 +49,55 @@ export default function CandidateReviewScreen() {
   if (!candidate) {
     return (
       <Screen>
-        <EmptyState title="Détection déjà traitée" />
+        <Panel>
+          <EmptyState title="Détection déjà traitée">
+            <AppButton variant="secondary" onPress={() => router.navigate('/review')}>
+              Revenir à la vérification
+            </AppButton>
+          </EmptyState>
+        </Panel>
       </Screen>
     );
   }
-  return <CandidateReviewForm candidate={candidate} />;
+  return (
+    <Screen>
+      <CandidateSummary candidate={candidate} />
+      <CandidateReviewForm candidate={candidate} />
+    </Screen>
+  );
+}
+
+function CandidateSummary({ candidate }: { candidate: Candidate }) {
+  const { colors, fonts } = useBrand();
+  const accountNames = useAccountNames();
+  const accountName = candidate.accountId ? accountNames.get(candidate.accountId) : undefined;
+  return (
+    <Panel>
+      <View style={styles.identity}>
+        <ServiceMonogram name={candidate.label} size={56} />
+        <View style={styles.grow}>
+          <Text style={[styles.title, { fontFamily: fonts.displayBold, color: colors.ink }]}>{candidate.label}</Text>
+          <Muted>{describeCandidateSource(candidate, accountName)}</Muted>
+        </View>
+      </View>
+      <View style={styles.amountRow}>
+        <AmountText size={34}>{monthlyAmount(candidate)}</AmountText>
+        <Text variant="bodyLarge" style={{ color: colors.inkMuted }}>
+          {`/ mois · le ${candidate.dayOfMonth}`}
+        </Text>
+      </View>
+      <View style={styles.signals}>
+        <ConfidenceMeter level={candidate.level} confidence={candidate.confidence} />
+        {candidate.stale ? <StalePill /> : null}
+      </View>
+      <ReasonList reasons={candidate.reasons} />
+      {candidate.suggestedSubscriptionId ? <MergeNotice /> : null}
+      <View style={styles.operations}>
+        <SectionLabel>Opérations</SectionLabel>
+        <OperationList operations={candidate.operations} currency={candidate.currency} />
+      </View>
+    </Panel>
+  );
 }
 
 function CandidateReviewForm({ candidate }: { candidate: Candidate }) {
@@ -68,38 +137,52 @@ function CandidateReviewForm({ candidate }: { candidate: Candidate }) {
   };
 
   return (
-    <Screen>
-      <Card>
-        <Card.Content style={{ gap: 8 }}>
-          <TextInput label="Libellé" mode="outlined" value={label} onChangeText={setLabel} />
-          <ProviderPicker value={provider} onChange={setProvider} />
-          <TextInput
-            label={`Montant mensuel (${candidate.currency})`}
-            mode="outlined"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-          />
-          <TextInput
-            label="Jour de prélèvement"
-            mode="outlined"
-            value={billingDay}
-            onChangeText={setBillingDay}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
-          <Muted>
-            Les valeurs que vous modifiez sont marquées « Déclaré » ; les autres restent « Observé » et suivront vos
-            prochains paiements.
-          </Muted>
-          <ErrorText message={formError} />
-        </Card.Content>
-        <Card.Actions>
-          <Button mode="contained" onPress={submit} loading={accept.isPending} disabled={accept.isPending}>
-            Confirmer l’abonnement
-          </Button>
-        </Card.Actions>
-      </Card>
-    </Screen>
+    <Panel>
+      <Text variant="titleLarge" accessibilityRole="header">
+        Modifier avant de suivre
+      </Text>
+      <TextInput
+        label="Libellé"
+        mode="outlined"
+        outlineStyle={controlStyles.fieldOutline}
+        value={label}
+        onChangeText={setLabel}
+      />
+      <ProviderPicker value={provider} onChange={setProvider} />
+      <TextInput
+        label={`Montant mensuel (${candidate.currency})`}
+        mode="outlined"
+        outlineStyle={controlStyles.fieldOutline}
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="decimal-pad"
+      />
+      <TextInput
+        label="Jour de prélèvement"
+        mode="outlined"
+        outlineStyle={controlStyles.fieldOutline}
+        value={billingDay}
+        onChangeText={setBillingDay}
+        keyboardType="number-pad"
+        maxLength={2}
+      />
+      <Muted>
+        Les valeurs que vous modifiez sont marquées « Déclaré » ; les autres restent « Observé » et suivront vos
+        prochains paiements.
+      </Muted>
+      <ErrorText message={formError} />
+      <AppButton onPress={submit} loading={accept.isPending}>
+        Suivre cet abonnement
+      </AppButton>
+    </Panel>
   );
 }
+
+const styles = StyleSheet.create({
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  grow: { flex: 1, gap: 2 },
+  title: { fontSize: 24, lineHeight: 30 },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 },
+  signals: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  operations: { gap: 8 },
+});

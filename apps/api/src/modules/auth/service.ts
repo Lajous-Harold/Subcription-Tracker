@@ -1,8 +1,13 @@
 import argon2 from 'argon2';
-import type { AuthResponse, ClientPlatform, User } from '@subtracker/contracts';
+import {
+  REFRESH_SUPERSEDED_ERROR_CODE,
+  type AuthResponse,
+  type ClientPlatform,
+  type User,
+} from '@subtracker/contracts';
 import { getConfig } from '../../core/context';
 import { randomToken, sha256 } from '../../core/crypto';
-import { conflict, unauthorized } from '../../core/errors';
+import { AppError, conflict, unauthorized } from '../../core/errors';
 import { SessionModel, UserModel, type UserDoc } from './models';
 import { signAccessToken } from './tokens';
 
@@ -11,6 +16,16 @@ let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= argon2.hash('mot-de-passe-factice-pour-temps-constant'));
 
 const invalidCredentials = () => unauthorized('Email ou mot de passe incorrect');
+
+/** Plusieurs onglets partagent le cookie du refresh token et peuvent le présenter presque en même temps. */
+export const CONCURRENT_ROTATION_GRACE_MS = 30_000;
+
+const refreshSuperseded = () =>
+  new AppError(401, REFRESH_SUPERSEDED_ERROR_CODE, 'Session déjà renouvelée par une autre requête, réessayez');
+
+function wasRotatedWithinGracePeriod(rotatedAt: Date | null | undefined): boolean {
+  return rotatedAt != null && Date.now() - rotatedAt.getTime() < CONCURRENT_ROTATION_GRACE_MS;
+}
 
 function toUserDto(user: Pick<UserDoc, '_id' | 'email' | 'createdAt'>): User {
   return { id: user._id.toString(), email: user.email, createdAt: user.createdAt.toISOString() };
@@ -77,11 +92,15 @@ export async function login(email: string, password: string, platform: ClientPla
   return issueSession(user, platform);
 }
 
-/** Chaque refresh token ne sert qu'une fois : une réutilisation révoque toute la famille (vol probable). */
+/**
+ * Chaque refresh token ne sert qu'une fois : une réutilisation révoque toute la famille (vol probable),
+ * sauf juste après sa rotation, où elle trahit plutôt un renouvellement concurrent.
+ */
 export async function refresh(refreshToken: string, platform: ClientPlatform) {
   const session = await SessionModel.findOne({ refreshTokenHash: sha256(refreshToken) });
   if (!session) throw unauthorized('Session invalide');
   if (session.revokedAt) {
+    if (wasRotatedWithinGracePeriod(session.rotatedAt)) throw refreshSuperseded();
     await SessionModel.updateMany({ familyId: session.familyId, revokedAt: null }, { $set: { revokedAt: new Date() } });
     throw unauthorized('Session révoquée');
   }
@@ -91,11 +110,13 @@ export async function refresh(refreshToken: string, platform: ClientPlatform) {
   if (!user) throw unauthorized('Session invalide');
 
   // Révocation atomique : deux refresh concurrents ne peuvent pas tourner le même token.
+  // Date de l'horloge Node plutôt que $currentDate : elle est comparée à Date.now() au prochain refresh.
+  const rotatedAt = new Date();
   const claimed = await SessionModel.findOneAndUpdate(
     { _id: session._id, revokedAt: null },
-    { $set: { revokedAt: new Date() } },
+    { $set: { revokedAt: rotatedAt, rotatedAt } },
   );
-  if (!claimed) throw unauthorized('Session révoquée');
+  if (!claimed) throw refreshSuperseded();
 
   return issueSession(user, platform, session.familyId);
 }

@@ -1,12 +1,10 @@
 import type {
+  BankAccount,
   BankLink,
   BankLinkStatus,
   CancellationMethod,
   CancellationStatus,
-  ConfidenceLevel,
   Origin,
-  Subscription,
-  SubscriptionStatus,
 } from '@subtracker/contracts';
 
 const CIVIL_DATE_LENGTH = 'YYYY-MM-DD'.length;
@@ -23,6 +21,11 @@ export function formatMoney(cents: number, currency = 'EUR'): string {
   }
 }
 
+/** Le signe moins typographique (U+2212) s'aligne sur la largeur des chiffres, pas le trait d'union. */
+export function formatSignedMoney(cents: number, currency = 'EUR'): string {
+  return cents < 0 ? `\u2212${formatMoney(-cents, currency)}` : formatMoney(cents, currency);
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
@@ -35,6 +38,12 @@ export function formatShortDate(value: string | null | undefined): string {
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(toUtcDate(value));
 }
 
+export function formatMediumDate(value: string): string {
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
+    toUtcDate(value),
+  );
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -44,8 +53,23 @@ export function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',');
 }
 
-export function formatProviderName(subscription: Pick<Subscription, 'provider' | 'customProviderName'>): string {
-  return subscription.provider?.name ?? subscription.customProviderName ?? 'Fournisseur non renseigné';
+/** En français, zéro s'accorde au singulier : « 0 opération ». */
+export function formatOperationCount(count: number): string {
+  return `${new Intl.NumberFormat('fr-FR').format(count)} ${Math.abs(count) < 2 ? 'opération' : 'opérations'}`;
+}
+
+export function formatMaskedAccountNumber(numberLast4: string): string {
+  return `••${numberLast4}`;
+}
+
+/** Espace insécable : le numéro masqué ne passe jamais seul à la ligne. */
+export function formatAccountLabel(account: Pick<BankAccount, 'name' | 'numberLast4'>): string {
+  return account.numberLast4 ? `${account.name}\u00a0${formatMaskedAccountNumber(account.numberLast4)}` : account.name;
+}
+
+/** Première lettre ou chiffre, pour les monogrammes et l'avatar du compte. */
+export function initialOf(text: string | null | undefined): string {
+  return text?.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase('fr-FR') ?? '?';
 }
 
 export const ORIGIN_LABELS: Record<Origin, string> = {
@@ -58,13 +82,6 @@ export const ORIGIN_HELP: Record<Origin, string> = {
   observed: 'Tiré de vos paiements bancaires',
   declared: 'Saisi ou corrigé par vous : jamais modifié automatiquement',
   estimated: 'Calculé par l’application',
-};
-
-export const STATUS_LABELS: Record<SubscriptionStatus, string> = {
-  active: 'Actif',
-  cancellation_pending: 'Résiliation en cours',
-  cancelled: 'Résilié',
-  archived: 'Archivé',
 };
 
 export const CANCELLATION_STATUS_LABELS: Record<CancellationStatus, string> = {
@@ -81,12 +98,6 @@ export const CANCELLATION_METHOD_LABELS: Record<CancellationMethod, string> = {
   letter: 'Par courrier',
   phone: 'Par téléphone',
   in_person: 'En agence / sur place',
-};
-
-export const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
-  high: 'Confiance élevée',
-  medium: 'Confiance moyenne',
-  low: 'À vérifier',
 };
 
 export const BANK_STATUS_LABELS: Record<BankLinkStatus, string> = {
@@ -112,4 +123,27 @@ export const BANK_STATUS_HELP: Record<BankLinkStatus, string> = {
 
 export function needsBankReconnection(bank: Pick<BankLink, 'status' | 'consentExpiringSoon'>): boolean {
   return bank.status === 'action_required' || bank.status === 'error' || bank.consentExpiringSoon;
+}
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const DAYS_SHOWN_AS_ELAPSED = 7;
+
+export function formatTimeAgo(timestamp: string, now: Date = new Date()): string {
+  const elapsedMs = Math.max(0, now.getTime() - new Date(timestamp).getTime());
+  if (elapsedMs < MINUTE_MS) return 'à l’instant';
+  if (elapsedMs < HOUR_MS) return `il y a ${Math.floor(elapsedMs / MINUTE_MS)} min`;
+  if (elapsedMs < DAY_MS) return `il y a ${Math.floor(elapsedMs / HOUR_MS)} h`;
+  const elapsedDays = Math.floor(elapsedMs / DAY_MS);
+  if (elapsedDays < DAYS_SHOWN_AS_ELAPSED) return `il y a ${elapsedDays} j`;
+  return `le ${formatShortDate(timestamp)}`;
+}
+
+export function formatCalendarDay(value: string): { day: string; month: string } {
+  const date = toUtcDate(value);
+  return {
+    day: new Intl.DateTimeFormat('fr-FR', { day: 'numeric', timeZone: 'UTC' }).format(date),
+    month: new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'UTC' }).format(date),
+  };
 }

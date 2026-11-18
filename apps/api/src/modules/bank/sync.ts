@@ -31,6 +31,11 @@ function parsePowensDate(value: string): Date {
   return new Date(value.replace(' ', 'T') + 'Z');
 }
 
+function lastFourAlphanumerics(value: string | null | undefined): string | null {
+  const alphanumerics = value?.replace(/[^A-Za-z0-9]/g, '') ?? '';
+  return alphanumerics ? alphanumerics.slice(-4) : null;
+}
+
 /** Le partage des comptes avec l'application se gère dans la Webview Powens, pas ici. */
 export async function refreshAccounts(userId: string): Promise<void> {
   const link = await BankLinkModel.findOne({ userId }).lean<BankLinkDoc>();
@@ -45,6 +50,7 @@ export async function refreshAccounts(userId: string): Promise<void> {
           bankLinkId: link._id,
           name: account.name ?? account.original_name ?? `Compte ${account.id}`,
           type: account.type ?? null,
+          numberLast4: lastFourAlphanumerics(account.number) ?? lastFourAlphanumerics(account.iban),
           currency: account.currency?.id ?? 'EUR',
           balanceCents: typeof account.balance === 'number' ? Math.round(account.balance * 100) : null,
           sharedWithApp: !account.disabled,
