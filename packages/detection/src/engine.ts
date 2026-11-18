@@ -38,6 +38,8 @@ export const DEFAULT_CONFIG: DetectionConfig = {
   mediumThreshold: 0.5,
   lowThreshold: 0.35,
   staleGraceDays: 15,
+  abandonedAfterIntervals: 3,
+  paymentIntermediaryPatterns: ['\\bPAYPAL\\b', '\\bLYDIA\\b', '\\bSUMERIA\\b', '\\bPAYLIB\\b'],
 };
 
 interface PreparedTransaction extends EngineTransaction {
@@ -53,17 +55,18 @@ interface CompiledProvider {
   regexes: RegExp[];
 }
 
+function compilePatterns(patterns: string[]): RegExp[] {
+  return patterns.flatMap((pattern) => {
+    try {
+      return [new RegExp(pattern, 'i')];
+    } catch {
+      return [];
+    }
+  });
+}
+
 function compileProviders(providers: ProviderPattern[]): CompiledProvider[] {
-  return providers.map((provider) => ({
-    provider,
-    regexes: provider.patterns.flatMap((pattern) => {
-      try {
-        return [new RegExp(pattern, 'i')];
-      } catch {
-        return [];
-      }
-    }),
-  }));
+  return providers.map((provider) => ({ provider, regexes: compilePatterns(provider.patterns) }));
 }
 
 function matchProvider(texts: string[], compiled: CompiledProvider[]): ProviderPattern | null {
@@ -80,22 +83,31 @@ function prepare(
 ): PreparedTransaction[] {
   const excluded = new Set(config.excludedKinds);
   const included = new Set(config.includedKinds);
+  const intermediaryRegexes = compilePatterns(config.paymentIntermediaryPatterns);
   return transactions
     .filter((tx) => !tx.pending && !tx.deleted && tx.amountCents < 0)
     .filter((tx) => !(tx.kind && excluded.has(tx.kind)))
-    .map((tx) => {
+    .flatMap((tx) => {
       const normalizedLabel = normalizeLabel(tx.label);
       const normalizedCounterparty = tx.counterpartyLabel ? normalizeLabel(tx.counterpartyLabel) : '';
-      const provider = matchProvider([normalizedCounterparty, normalizedLabel].filter(Boolean), compiled);
+      const texts = [normalizedCounterparty, normalizedLabel].filter(Boolean);
+      const provider = matchProvider(texts, compiled);
+      // Le libellé d'un intermédiaire ne dit rien du marchand réellement payé : sans fournisseur reconnu,
+      // regrouper ces opérations mêlerait des achats sans rapport.
+      const paidThroughUnknownIntermediary =
+        !provider && intermediaryRegexes.some((regex) => texts.some((text) => regex.test(text)));
+      if (paidThroughUnknownIntermediary) return [];
       const labelMerchantKey = merchantKeyFromLabel(normalizedCounterparty || normalizedLabel);
-      return {
-        ...tx,
-        absCents: Math.abs(tx.amountCents),
-        merchantKey: provider ? `provider:${provider.slug}` : labelMerchantKey,
-        label: provider ? provider.name : displayLabel(labelMerchantKey),
-        provider,
-        kindKnown: tx.kind !== null && included.has(tx.kind),
-      };
+      return [
+        {
+          ...tx,
+          absCents: Math.abs(tx.amountCents),
+          merchantKey: provider ? `provider:${provider.slug}` : labelMerchantKey,
+          label: provider ? provider.name : displayLabel(labelMerchantKey),
+          provider,
+          kindKnown: tx.kind !== null && included.has(tx.kind),
+        },
+      ];
     });
 }
 
@@ -230,6 +242,7 @@ function analyzeSeries(
   const occurrences = uniqueDates.length;
   const provider = first.provider;
   const daysSinceLastPayment = daysBetween(last.date, options.today);
+  if (daysSinceLastPayment > config.abandonedAfterIntervals * intervalDays) return null;
   const stale = daysSinceLastPayment > intervalDays + config.staleGraceDays;
   const unknownKinds = series.some((tx) => !tx.kindKnown);
 

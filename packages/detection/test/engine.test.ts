@@ -148,3 +148,101 @@ describe('detectSubscriptions — cas limites', () => {
     ).toHaveLength(1);
   });
 });
+
+describe('detectSubscriptions — séries abandonnées', () => {
+  // Intervalle médian de 31 jours : la série est abandonnée au-delà de 3 × 31 = 93 jours sans paiement.
+  const PAYMENT_DATES = ['2026-03-05', '2026-04-05', '2026-05-05', '2026-06-05', '2026-07-05', '2026-08-05'];
+
+  const monthlySeries = (dates: string[], label: string): EngineTransaction[] =>
+    dates.map((date, index) => ({
+      id: `tx-${index}`,
+      accountId: 'a1',
+      date,
+      amountCents: -2160,
+      currency: 'EUR',
+      label,
+      kind: 'card',
+      pending: false,
+    }));
+
+  it('ne propose plus une série sans paiement depuis plus de 3 échéances', () => {
+    const txs = monthlySeries(PAYMENT_DATES, 'CB SERVICE TEST');
+    expect(detectSubscriptions(txs, [], { today: '2026-11-10' })).toEqual([]);
+  });
+
+  it('ne propose plus un fournisseur reconnu dont le dernier prélèvement date de plus de six mois', () => {
+    const txs = monthlySeries(
+      ['2026-02-18', '2026-03-18', '2026-04-18', '2026-05-18'],
+      'CB ANTHROPIC CLAUDE.AI SUBSCRIPTION',
+    );
+    expect(detectSubscriptions(txs, PROVIDERS, { today: '2026-11-18' })).toEqual([]);
+  });
+
+  it('propose encore, comme interrompue et sans confiance élevée, une série sans paiement depuis moins de 3 échéances', () => {
+    const txs = monthlySeries(PAYMENT_DATES, 'CB SERVICE TEST');
+    const result = detectSubscriptions(txs, [], { today: '2026-10-20' });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.stale).toBe(true);
+    expect(result[0]?.level).not.toBe('high');
+  });
+
+  it("accepte un seuil d'abandon personnalisé, en nombre d'échéances", () => {
+    const txs = monthlySeries(PAYMENT_DATES, 'CB SERVICE TEST');
+    expect(detectSubscriptions(txs, [], { today: '2026-10-20', config: { abandonedAfterIntervals: 2 } })).toEqual([]);
+  });
+});
+
+describe('detectSubscriptions — intermédiaires de paiement', () => {
+  const PAYMENT_DATES = ['2026-05-12', '2026-06-12', '2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12'];
+  const TODAY_AFTER_SERIES = '2026-11-02';
+
+  const monthlySeries = (overrides: Partial<EngineTransaction>): EngineTransaction[] =>
+    PAYMENT_DATES.map((date, index) => ({
+      id: `tx-${index}`,
+      accountId: 'a1',
+      date,
+      amountCents: -1099,
+      currency: 'EUR',
+      label: 'CB SERVICE TEST',
+      kind: 'card',
+      pending: false,
+      ...overrides,
+    }));
+
+  it.each([
+    ['PRLV SEPA PAYPAL EUROPE S.A.R.L. ET CIE S.C.A', 'order'],
+    ['PAYPAL *PAYPAL', 'card'],
+    ['CB PAYPAL 12/03', 'card'],
+    ['CB LYDIA 12/03', 'card'],
+    ['CB SUMERIA 12/03', 'card'],
+    ['CB PAYLIB 12/03', 'card'],
+  ])('ne propose rien pour le libellé « %s » qui ne désigne qu’un intermédiaire', (label, kind) => {
+    const txs = monthlySeries({ label, kind });
+    expect(detectSubscriptions(txs, PROVIDERS, { today: TODAY_AFTER_SERIES })).toEqual([]);
+  });
+
+  it('ne propose rien quand la contrepartie ne désigne qu’un intermédiaire', () => {
+    const txs = monthlySeries({
+      label: 'PRLV SEPA 1043265987 MANDAT 5UL2J22',
+      counterpartyLabel: 'PAYPAL EUROPE S.A.R.L. ET CIE S.C.A',
+      kind: 'order',
+    });
+    expect(detectSubscriptions(txs, PROVIDERS, { today: TODAY_AFTER_SERIES })).toEqual([]);
+  });
+
+  it('détecte sous son fournisseur un abonnement du catalogue payé via un intermédiaire', () => {
+    const txs = monthlySeries({ label: 'PAYPAL *SPOTIFY' });
+    const result = detectSubscriptions(txs, PROVIDERS, { today: TODAY_AFTER_SERIES });
+    expect(result.map((candidate) => candidate.providerId)).toEqual(['p-spotify']);
+  });
+
+  it("accepte une liste d'intermédiaires personnalisée", () => {
+    const txs = monthlySeries({ label: 'CB SKRILL LTD 12/03' });
+    expect(
+      detectSubscriptions(txs, PROVIDERS, {
+        today: TODAY_AFTER_SERIES,
+        config: { paymentIntermediaryPatterns: ['\\bSKRILL\\b'] },
+      }),
+    ).toEqual([]);
+  });
+});
