@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { LoginBodySchema, PASSWORD_MIN_LENGTH, RegisterBodySchema } from '@subtracker/contracts';
-import { ErrorText, Muted, Panel } from '@/components/ui';
+import { controlStyles, ErrorText, Muted, Panel } from '@/components/ui';
 import { Wordmark } from '@/components/Wordmark';
 import { useAuth } from '@/lib/auth';
 import { ApiError, errorMessage } from '@/lib/http';
-import { fontFamilies, radii } from '@/lib/theme';
+import { fontFamilies } from '@/lib/theme';
 
 export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const { signIn, signUp } = useAuth();
@@ -59,7 +59,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          outlineStyle={styles.input}
+          outlineStyle={controlStyles.fieldOutline}
           error={Boolean(fieldErrors.email)}
         />
         <ErrorText message={fieldErrors.email} />
@@ -71,7 +71,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           secureTextEntry={!showPassword}
           autoComplete={isSignUp ? 'new-password' : 'current-password'}
           error={Boolean(fieldErrors.password)}
-          outlineStyle={styles.input}
+          outlineStyle={controlStyles.fieldOutline}
           onSubmitEditing={submit}
           right={
             <TextInput.Icon
@@ -113,7 +113,6 @@ const styles = StyleSheet.create({
   brand: { width: '100%', maxWidth: 420, gap: 12, marginBottom: 24 },
   tagline: { fontFamily: fontFamilies.displayMedium },
   card: { width: '100%', maxWidth: 420, padding: 24, gap: 4 },
-  input: { borderRadius: radii.control },
   submit: { marginTop: 12 },
   touchTarget: { minHeight: 48 },
   switch: { alignItems: 'center', marginTop: 4 },

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { useBrand } from '@/lib/theme';
-import { styles } from './ui';
+import { controlStyles, styles } from './ui';
 
 export function ConfirmDialog({
   visible,
@@ -34,9 +34,12 @@ export function ConfirmDialog({
           {children}
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Annuler</Button>
+          <Button onPress={onDismiss} contentStyle={controlStyles.mainAction}>
+            Annuler
+          </Button>
           <Button
             onPress={onConfirm}
+            contentStyle={controlStyles.mainAction}
             loading={loading}
             disabled={loading}
             textColor={destructive ? brand.colors.destructive : undefined}

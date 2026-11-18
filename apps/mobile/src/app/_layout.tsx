@@ -3,7 +3,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/toast';
@@ -16,22 +17,24 @@ void SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const isDark = useColorScheme() === 'dark';
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <PaperProvider
-          theme={isDark ? darkTheme : lightTheme}
-          settings={{ icon: (props) => <MaterialCommunityIcons {...(props as object)} name={props.name as never} /> }}
-        >
-          <ThemeProvider value={isDark ? navigationDark : navigationLight}>
-            <ToastProvider>
-              <AuthProvider>
-                <RootNavigator />
-              </AuthProvider>
-            </ToastProvider>
-          </ThemeProvider>
-        </PaperProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <PaperProvider
+            theme={isDark ? darkTheme : lightTheme}
+            settings={{ icon: (props) => <MaterialCommunityIcons {...(props as object)} name={props.name as never} /> }}
+          >
+            <ThemeProvider value={isDark ? navigationDark : navigationLight}>
+              <ToastProvider>
+                <AuthProvider>
+                  <RootNavigator />
+                </AuthProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </PaperProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -62,3 +65,7 @@ function RootNavigator() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

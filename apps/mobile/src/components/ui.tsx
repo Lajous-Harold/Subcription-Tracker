@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { ActivityIndicator, Button, HelperText, Text } from 'react-native-paper';
 import type { ConfidenceLevel, Origin } from '@subtracker/contracts';
-import { ORIGIN_HELP, ORIGIN_LABELS } from '@/lib/format';
+import { initialOf, ORIGIN_HELP, ORIGIN_LABELS } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
+import { useLayoutMode } from '@/lib/layout';
 import { radii, tabularNums, useBrand } from '@/lib/theme';
 
 const MAX_WIDTH = 760;
+const WIDE_MAX_WIDTH = 1200;
+const FORM_MAX_WIDTH = 560;
 
 export function Screen({
   children,
@@ -23,16 +26,22 @@ export function Screen({
   onRefresh,
   ...props
 }: ScrollViewProps & { children: ReactNode; refreshing?: boolean; onRefresh?: () => void }) {
+  const isWide = useLayoutMode() === 'wide';
   return (
     <ScrollView
-      contentContainerStyle={styles.screen}
+      contentContainerStyle={isWide ? styles.wideScreen : styles.screen}
       keyboardShouldPersistTaps="handled"
       refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} /> : undefined}
       {...props}
     >
-      <View style={styles.inner}>{children}</View>
+      <View style={isWide ? styles.wideInner : styles.inner}>{children}</View>
     </ScrollView>
   );
+}
+
+/** Colonne étroite des formulaires, centrée dans `Screen` quel que soit le mode. */
+export function FormColumn({ children }: { children: ReactNode }) {
+  return <View style={styles.formColumn}>{children}</View>;
 }
 
 export function Loading() {
@@ -50,7 +59,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         {errorMessage(error)}
       </Text>
       {onRetry ? (
-        <Button mode="contained-tonal" onPress={onRetry} style={styles.spaced}>
+        <Button mode="contained-tonal" onPress={onRetry} style={styles.spaced} contentStyle={controlStyles.mainAction}>
           Réessayer
         </Button>
       ) : null}
@@ -156,18 +165,16 @@ export function ConfidenceMeter({ level, confidence }: { level: ConfidenceLevel;
 /** Services en monogramme neutre : jamais de logo redessiné d'une marque réelle. */
 export function ServiceMonogram({ name, size = 36 }: { name: string; size?: number }) {
   const brand = useBrand();
-  const initial = name.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase('fr-FR') ?? '?';
   return (
     <View
       style={[
         styles.monogram,
         { width: size, height: size, borderRadius: Math.round(size * 0.28), backgroundColor: brand.colors.tile },
       ]}
-      importantForAccessibility="no-hide-descendants"
-      accessibilityElementsHidden
+      aria-hidden
     >
       <Text style={{ fontFamily: brand.fonts.bold, fontSize: Math.round(size * 0.42), color: brand.colors.ink }}>
-        {initial}
+        {initialOf(name)}
       </Text>
     </View>
   );
@@ -201,6 +208,10 @@ export function Muted({ children, style }: { children: ReactNode; style?: StyleP
 export const styles = StyleSheet.create({
   screen: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 96, alignItems: 'center' },
   inner: { width: '100%', maxWidth: MAX_WIDTH, gap: 16 },
+  /** Aligné sur le titre de page de `TabHeader`, à 32 px de la barre latérale. */
+  wideScreen: { paddingHorizontal: 32, paddingTop: 16, paddingBottom: 96, alignItems: 'flex-start' },
+  wideInner: { width: '100%', maxWidth: WIDE_MAX_WIDTH, gap: 16 },
+  formColumn: { width: '100%', maxWidth: FORM_MAX_WIDTH, alignSelf: 'center', gap: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   centerText: { textAlign: 'center' },
   spaced: { marginTop: 12 },
@@ -221,5 +232,10 @@ export const styles = StyleSheet.create({
   dialog: { maxWidth: 480, alignSelf: 'center', width: '92%', borderRadius: radii.panel },
   section: { marginTop: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+});
+
+/** Champs `outlined` aux arrondis des contrôles, actions principales à 48 px de haut. */
+export const controlStyles = StyleSheet.create({
+  fieldOutline: { borderRadius: radii.control },
+  mainAction: { minHeight: 48 },
 });

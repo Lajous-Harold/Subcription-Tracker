@@ -1,116 +1,127 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
-import { Button, Card, FAB, List, SegmentedButtons, Text } from 'react-native-paper';
-import type { Subscription, SubscriptionStatus } from '@subtracker/contracts';
-import { EmptyState, ErrorState, Loading, Muted, OriginChip, Screen, styles } from '@/components/ui';
+import { StyleSheet, View } from 'react-native';
+import { Button, FAB, SegmentedButtons, TextInput } from 'react-native-paper';
+import { controlStyles, EmptyState, ErrorState, Loading, Muted, Panel, Screen } from '@/components/ui';
+import { filterSubscriptions, type StatusFilter } from '@/features/subscriptions-list/filters';
+import { SubscriptionList, SubscriptionTable } from '@/features/subscriptions-list/SubscriptionRows';
 import { api } from '@/lib/api';
-import { formatMoney, formatProviderName, formatShortDate } from '@/lib/format';
+import { useLayoutMode } from '@/lib/layout';
 import { queryKeys } from '@/lib/query';
+import { useBrand } from '@/lib/theme';
 
-type Filter = 'tracked' | 'cancelled' | 'archived';
+const ADD_SUBSCRIPTION_LABEL = 'Ajouter un abonnement';
+const OBSERVATION_DISCLAIMER = 'Une opération observée ne prouve pas qu’un abonnement est actif.';
 
-const STATUSES_BY_FILTER: Record<Filter, SubscriptionStatus[]> = {
-  tracked: ['active', 'cancellation_pending'],
-  cancelled: ['cancelled'],
-  archived: ['archived'],
-};
+const openNewSubscription = () => router.push('/subscriptions/new');
 
-function describeSubscription(sub: Subscription): string {
-  const parts = [formatProviderName(sub)];
-  if (sub.status === 'cancellation_pending') parts.push('Résiliation en cours');
-  else if (sub.nextDueDate) parts.push(`Prochaine échéance ${formatShortDate(sub.nextDueDate.value)}`);
-  return parts.join(' · ');
+function StatusFilterButtons({ value, onChange }: { value: StatusFilter; onChange: (value: StatusFilter) => void }) {
+  return (
+    <SegmentedButtons
+      value={value}
+      onValueChange={(next) => onChange(next as StatusFilter)}
+      buttons={[
+        { value: 'tracked', label: 'Suivis' },
+        { value: 'cancelled', label: 'Résiliés' },
+        { value: 'archived', label: 'Archivés' },
+      ]}
+    />
+  );
+}
+
+function NoSubscriptions({ statusFilter, searching }: { statusFilter: StatusFilter; searching: boolean }) {
+  if (searching)
+    return <EmptyState title="Aucun résultat" description="Aucun abonnement ne correspond à la recherche." />;
+  if (statusFilter !== 'tracked') return <EmptyState title="Rien ici pour le moment" />;
+  return (
+    <EmptyState
+      title="Aucun abonnement suivi"
+      description="Ajoutez-en un à la main, ou connectez votre banque pour qu’ils soient détectés."
+    />
+  );
 }
 
 export default function SubscriptionsScreen() {
-  const [filter, setFilter] = useState<Filter>('tracked');
+  const brand = useBrand();
+  const layoutMode = useLayoutMode();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('tracked');
+  const [searchQuery, setSearchQuery] = useState('');
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: () => api.subscriptions(),
   });
 
-  const items = (data ?? []).filter((sub) => STATUSES_BY_FILTER[filter].includes(sub.status));
+  if (isLoading) return <Loading />;
+  if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
-  return (
-    <View style={{ flex: 1 }}>
-      {isLoading ? (
-        <Loading />
-      ) : error ? (
-        <ErrorState error={error} onRetry={refetch} />
-      ) : (
-        <Screen refreshing={isRefetching} onRefresh={refetch}>
-          <SegmentedButtons
-            value={filter}
-            onValueChange={(value) => setFilter(value as Filter)}
-            buttons={[
-              { value: 'tracked', label: 'Suivis' },
-              { value: 'cancelled', label: 'Résiliés' },
-              { value: 'archived', label: 'Archivés' },
-            ]}
-          />
-          <Button
-            mode="text"
-            icon="magnify-scan"
-            onPress={() => router.push('/candidates')}
-            style={{ alignSelf: 'flex-start' }}
-          >
-            Abonnements détectés à vérifier
-          </Button>
-          {items.length === 0 ? (
-            <Card>
-              <EmptyState
-                title={filter === 'tracked' ? 'Aucun abonnement suivi' : 'Rien ici pour le moment'}
-                description={
-                  filter === 'tracked' ? 'Ajoutez-en un avec le bouton +, ou connectez votre banque.' : undefined
-                }
-              />
-            </Card>
-          ) : (
-            <Card>
-              {items.map((sub) => (
-                <List.Item
-                  key={sub.id}
-                  title={sub.label}
-                  description={describeSubscription(sub)}
-                  descriptionNumberOfLines={2}
-                  onPress={() => router.push(`/subscriptions/${sub.id}`)}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon={sub.paymentMissing ? 'calendar-alert' : sub.bankLinked ? 'bank-check' : 'pencil-outline'}
-                    />
-                  )}
-                  right={() => (
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Text variant="titleMedium">
-                        {formatMoney(sub.amount.value.cents, sub.amount.value.currency)}
-                      </Text>
-                      <OriginChip origin={sub.amount.origin} />
-                    </View>
-                  )}
-                />
-              ))}
-            </Card>
-          )}
-          <View style={styles.row}>
-            <List.Icon icon="bank-check" />
-            <Muted>Lié à la banque</Muted>
-            <List.Icon icon="pencil-outline" />
-            <Muted>Déclaré à la main</Muted>
-            <List.Icon icon="calendar-alert" />
-            <Muted>Paiement non observé</Muted>
+  if (layoutMode === 'wide') {
+    const rows = filterSubscriptions(data, statusFilter, searchQuery);
+    return (
+      <Screen refreshing={isRefetching} onRefresh={refetch}>
+        <View style={styles.toolbar}>
+          <View style={styles.filters}>
+            <StatusFilterButtons value={statusFilter} onChange={setStatusFilter} />
           </View>
-        </Screen>
-      )}
+          <Button mode="contained" icon="plus" onPress={openNewSubscription} contentStyle={styles.mainActionContent}>
+            {ADD_SUBSCRIPTION_LABEL}
+          </Button>
+        </View>
+        <Panel>
+          <TextInput
+            mode="outlined"
+            dense
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Rechercher un abonnement"
+            accessibilityLabel="Rechercher un abonnement"
+            left={<TextInput.Icon icon="magnify" />}
+            outlineStyle={controlStyles.fieldOutline}
+          />
+          {rows.length === 0 ? (
+            <NoSubscriptions statusFilter={statusFilter} searching={searchQuery.trim() !== ''} />
+          ) : (
+            <SubscriptionTable subscriptions={rows} />
+          )}
+          <Muted>{OBSERVATION_DISCLAIMER}</Muted>
+        </Panel>
+      </Screen>
+    );
+  }
+
+  const items = filterSubscriptions(data, statusFilter);
+  return (
+    <View style={styles.fill}>
+      <Screen refreshing={isRefetching} onRefresh={refetch}>
+        <StatusFilterButtons value={statusFilter} onChange={setStatusFilter} />
+        {items.length === 0 ? (
+          <Panel>
+            <NoSubscriptions statusFilter={statusFilter} searching={false} />
+          </Panel>
+        ) : (
+          <Panel style={styles.listPanel}>
+            <SubscriptionList subscriptions={items} />
+          </Panel>
+        )}
+        <Muted>{OBSERVATION_DISCLAIMER}</Muted>
+      </Screen>
       <FAB
         icon="plus"
-        label="Ajouter"
-        style={{ position: 'absolute', right: 16, bottom: 16 }}
-        onPress={() => router.push('/subscriptions/new')}
-        accessibilityLabel="Ajouter un abonnement"
+        label={ADD_SUBSCRIPTION_LABEL}
+        color={brand.colors.onAction}
+        style={[styles.fab, { backgroundColor: brand.colors.action }]}
+        onPress={openNewSubscription}
+        accessibilityLabel={ADD_SUBSCRIPTION_LABEL}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' },
+  filters: { flexGrow: 1, flexShrink: 1, minWidth: 280, maxWidth: 420 },
+  mainActionContent: { minHeight: 48 },
+  listPanel: { paddingVertical: 4, gap: 0 },
+  fab: { position: 'absolute', right: 16, bottom: 16 },
+});

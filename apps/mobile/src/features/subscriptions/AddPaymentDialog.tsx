@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, todayIso } from '@subtracker/contracts';
-import { ErrorText, styles } from '@/components/ui';
+import { ErrorText, controlStyles, styles } from '@/components/ui';
 import { api } from '@/lib/api';
 import { centsToInput } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
@@ -54,25 +55,50 @@ export function AddPaymentDialog({
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Ajouter un paiement</Dialog.Title>
-        <Dialog.Content style={{ gap: 8 }}>
-          <TextInput label="Date (AAAA-MM-JJ)" mode="outlined" value={date} onChangeText={setDate} />
+        <Dialog.Content style={dialogStyles.content}>
+          <TextInput
+            label="Date (AAAA-MM-JJ)"
+            mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
+            value={date}
+            onChangeText={setDate}
+          />
           <TextInput
             label={`Montant (${currency})`}
             mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
           />
-          <TextInput label="Note (facultatif)" mode="outlined" value={note} onChangeText={setNote} />
+          <TextInput
+            label="Note (facultatif)"
+            mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
+            value={note}
+            onChangeText={setNote}
+          />
           <ErrorText message={error} />
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Annuler</Button>
-          <Button onPress={submit} loading={addPayment.isPending} disabled={addPayment.isPending}>
-            Ajouter
+          <Button contentStyle={controlStyles.mainAction} onPress={onDismiss}>
+            Annuler
+          </Button>
+          <Button
+            mode="contained"
+            contentStyle={controlStyles.mainAction}
+            onPress={submit}
+            loading={addPayment.isPending}
+            disabled={addPayment.isPending}
+          >
+            Ajouter le paiement
           </Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
   );
 }
+
+const dialogStyles = StyleSheet.create({
+  content: { gap: 8 },
+});

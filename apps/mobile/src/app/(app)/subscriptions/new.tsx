@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Screen } from '@/components/ui';
+import { FormColumn, Screen } from '@/components/ui';
 import { useToast } from '@/components/toast';
 import { SubscriptionForm, type SubscriptionFormValues } from '@/features/subscriptions/SubscriptionForm';
 import { api } from '@/lib/api';
@@ -20,12 +20,14 @@ export default function NewSubscriptionScreen() {
 
   return (
     <Screen>
-      <SubscriptionForm
-        submitLabel="Ajouter"
-        submitting={createSubscription.isPending}
-        serverError={createSubscription.error ? errorMessage(createSubscription.error) : null}
-        onSubmit={(values) => createSubscription.mutate(values)}
-      />
+      <FormColumn>
+        <SubscriptionForm
+          submitLabel="Ajouter l’abonnement"
+          submitting={createSubscription.isPending}
+          serverError={createSubscription.error ? errorMessage(createSubscription.error) : null}
+          onSubmit={(values) => createSubscription.mutate(values)}
+        />
+      </FormColumn>
     </Screen>
   );
 }

@@ -239,6 +239,3 @@ function toNavigationTheme(base: typeof NavLight, paper: AppTheme): typeof NavLi
 
 export const navigationLight = toNavigationTheme(NavLight, lightTheme);
 export const navigationDark = toNavigationTheme(NavDark, darkTheme);
-
-/** Encore lu par des écrans à refaire ; à remplacer par `useBrand().colors.destructive`, qui suit le mode sombre. */
-export const DESTRUCTIVE_COLOR = lightBrandColors.destructive;

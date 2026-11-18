@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { View } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { IsoDateSchema, parseAmountToCents, type SubscriptionDetail } from '@subtracker/contracts';
 import { ProviderPicker, type ProviderValue } from '@/components/ProviderPicker';
-import { ErrorText, Muted, SectionTitle } from '@/components/ui';
+import { ErrorText, controlStyles, Muted, Panel } from '@/components/ui';
 import { centsToInput } from '@/lib/format';
 
 export interface SubscriptionFormValues {
@@ -23,6 +23,17 @@ interface Props {
   submitting: boolean;
   serverError?: string | null;
   onSubmit: (values: SubscriptionFormValues) => void;
+}
+
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Panel style={formStyles.section}>
+      <Text variant="titleMedium" accessibilityRole="header" style={formStyles.sectionTitle}>
+        {title}
+      </Text>
+      {children}
+    </Panel>
+  );
 }
 
 export function SubscriptionForm({ initial, submitLabel, submitting, serverError, onSubmit }: Props) {
@@ -70,68 +81,103 @@ export function SubscriptionForm({ initial, submitLabel, submitting, serverError
   };
 
   return (
-    <View style={{ gap: 4 }}>
-      <TextInput label="Libellé" mode="outlined" value={label} onChangeText={setLabel} error={Boolean(errors.label)} />
-      <ErrorText message={errors.label} />
-      <SectionTitle>Fournisseur</SectionTitle>
-      <ProviderPicker value={provider} onChange={setProvider} />
-      <SectionTitle>Montant mensuel</SectionTitle>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+    <View style={formStyles.form}>
+      <FormSection title="Abonnement">
         <TextInput
-          label="Montant"
+          label="Libellé"
           mode="outlined"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          error={Boolean(errors.amount)}
-          style={{ flex: 2 }}
+          outlineStyle={controlStyles.fieldOutline}
+          value={label}
+          onChangeText={setLabel}
+          error={Boolean(errors.label)}
         />
+        <ErrorText message={errors.label} />
+        <ProviderPicker value={provider} onChange={setProvider} />
+      </FormSection>
+
+      <FormSection title="Montant mensuel">
+        <View style={formStyles.amountRow}>
+          <TextInput
+            label="Montant"
+            mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            error={Boolean(errors.amount)}
+            style={formStyles.amountField}
+          />
+          <TextInput
+            label="Devise"
+            mode="outlined"
+            outlineStyle={controlStyles.fieldOutline}
+            value={currency}
+            onChangeText={setCurrency}
+            autoCapitalize="characters"
+            maxLength={3}
+            error={Boolean(errors.currency)}
+            style={formStyles.currencyField}
+          />
+        </View>
+        <ErrorText message={errors.amount ?? errors.currency} />
+      </FormSection>
+
+      <FormSection title="Échéance (facultatif)">
         <TextInput
-          label="Devise"
+          label="Jour de prélèvement (1 à 31)"
           mode="outlined"
-          value={currency}
-          onChangeText={setCurrency}
-          autoCapitalize="characters"
-          maxLength={3}
-          error={Boolean(errors.currency)}
-          style={{ flex: 1 }}
+          outlineStyle={controlStyles.fieldOutline}
+          value={billingDay}
+          onChangeText={setBillingDay}
+          keyboardType="number-pad"
+          maxLength={2}
+          error={Boolean(errors.billingDay)}
         />
-      </View>
-      <ErrorText message={errors.amount ?? errors.currency} />
-      <SectionTitle>Échéance (facultatif)</SectionTitle>
-      <TextInput
-        label="Jour de prélèvement (1 à 31)"
-        mode="outlined"
-        value={billingDay}
-        onChangeText={setBillingDay}
-        keyboardType="number-pad"
-        maxLength={2}
-        error={Boolean(errors.billingDay)}
-      />
-      <ErrorText message={errors.billingDay} />
-      <TextInput
-        label="Prochaine échéance (AAAA-MM-JJ)"
-        mode="outlined"
-        value={nextDueDate}
-        onChangeText={setNextDueDate}
-        placeholder="2026-12-05"
-        error={Boolean(errors.nextDueDate)}
-      />
-      <ErrorText message={errors.nextDueDate} />
-      <Muted>Sans échéance fixée, elle est estimée à partir du jour de prélèvement ou du dernier paiement.</Muted>
-      <TextInput
-        label="Notes"
-        mode="outlined"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-        style={{ marginTop: 8 }}
-      />
+        <ErrorText message={errors.billingDay} />
+        <TextInput
+          label="Prochaine échéance (AAAA-MM-JJ)"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={nextDueDate}
+          onChangeText={setNextDueDate}
+          placeholder="2026-12-05"
+          error={Boolean(errors.nextDueDate)}
+        />
+        <ErrorText message={errors.nextDueDate} />
+        <Muted>Sans échéance fixée, elle est estimée à partir du jour de prélèvement ou du dernier paiement.</Muted>
+      </FormSection>
+
+      <FormSection title="Notes (facultatif)">
+        <TextInput
+          label="Notes"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+        />
+      </FormSection>
+
       <Muted>Les valeurs saisies sont marquées « Déclaré » et ne seront jamais modifiées automatiquement.</Muted>
       <ErrorText message={serverError} />
-      <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={{ marginTop: 12 }}>
+      <Button
+        mode="contained"
+        contentStyle={controlStyles.mainAction}
+        onPress={submit}
+        loading={submitting}
+        disabled={submitting}
+      >
         {submitLabel}
       </Button>
     </View>
   );
 }
+
+const formStyles = StyleSheet.create({
+  form: { gap: 16 },
+  section: { gap: 4 },
+  sectionTitle: { marginBottom: 8 },
+  amountRow: { flexDirection: 'row', gap: 8 },
+  amountField: { flex: 2 },
+  currencyField: { flex: 1 },
+});

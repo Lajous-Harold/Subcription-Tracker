@@ -1,9 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { View } from 'react-native';
-import { Button, Card, RadioButton, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Button, Text, TextInput } from 'react-native-paper';
 import {
   IsoDateSchema,
   type CancellationMethod,
@@ -12,37 +11,54 @@ import {
   type SubscriptionDetail,
 } from '@subtracker/contracts';
 import { useToast } from '@/components/toast';
-import { ErrorState, ErrorText, Loading, Muted, Screen, SectionTitle } from '@/components/ui';
+import { ErrorState, ErrorText, controlStyles, Loading, Muted, Panel, Screen } from '@/components/ui';
+import { CancellationProcedure, useSubscriptionProvider } from '@/features/subscriptions/cancellation';
+import { OptionGroup, type Option } from '@/features/subscriptions/OptionGroup';
 import { api } from '@/lib/api';
 import { CANCELLATION_METHOD_LABELS, CANCELLATION_STATUS_LABELS, formatDate } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { queryKeys, storeUpdatedSubscription } from '@/lib/query';
+import { useBrand } from '@/lib/theme';
 
-const GENERIC_CANCELLATION_INSTRUCTIONS =
-  'Cherchez dans votre espace client une rubrique « Abonnement » ou « Résiliation » : les contrats souscrits en ligne doivent en principe pouvoir être résiliés en ligne. À défaut, envoyez une lettre recommandée avec accusé de réception en indiquant vos références client, et conservez la preuve d’envoi.';
-
-const STATUSES: CancellationStatus[] = ['started', 'requested', 'confirmed', 'abandoned'];
-const METHODS = Object.keys(CANCELLATION_METHOD_LABELS) as CancellationMethod[];
+const STATUS_OPTIONS: Option<CancellationStatus>[] = (['started', 'requested', 'confirmed', 'abandoned'] as const).map(
+  (status) => ({ value: status, label: CANCELLATION_STATUS_LABELS[status] }),
+);
+const METHOD_OPTIONS = (Object.keys(CANCELLATION_METHOD_LABELS) as CancellationMethod[]).map(
+  (method): Option<CancellationMethod> => ({ value: method, label: CANCELLATION_METHOD_LABELS[method] }),
+);
 
 export default function CancellationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const subscription = useQuery({ queryKey: queryKeys.subscription(id), queryFn: () => api.subscription(id) });
-  const slug = subscription.data?.provider?.slug;
-  const provider = useQuery({
-    queryKey: queryKeys.provider(slug),
-    queryFn: () => api.provider(slug!),
-    enabled: Boolean(slug),
-  });
+  const provider = useSubscriptionProvider(subscription.data);
 
-  if (subscription.isLoading || (slug && provider.isLoading)) return <Loading />;
+  if (subscription.isLoading || provider.isLoading) return <Loading />;
   if (subscription.error || !subscription.data)
     return <ErrorState error={subscription.error} onRetry={subscription.refetch} />;
   return <CancellationForm subscription={subscription.data} provider={provider.data ?? null} />;
 }
 
+function verificationNotice(provider: Provider | null): string {
+  const verifiedAt = provider?.cancellation.lastVerifiedAt;
+  if (!provider) return 'Fournisseur hors catalogue : adaptez ces étapes à votre contrat.';
+  if (verifiedAt) {
+    return `Dernière vérification le ${formatDate(verifiedAt)}. Les parcours changent : en cas de doute, fiez-vous au site officiel.`;
+  }
+  return 'Indicative seulement : fiez-vous au site officiel du fournisseur.';
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <Text variant="labelLarge" style={formStyles.fieldLabel}>
+      {children}
+    </Text>
+  );
+}
+
 function CancellationForm({ subscription, provider }: { subscription: SubscriptionDetail; provider: Provider | null }) {
   const id = subscription.id;
   const toast = useToast();
+  const brand = useBrand();
   const tracked = subscription.cancellation;
   const [status, setStatus] = useState<CancellationStatus>(tracked?.status ?? 'started');
   const [method, setMethod] = useState<CancellationMethod | null>(
@@ -76,9 +92,6 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
     onSuccess: onSaved,
     onError: toast.showError,
   });
-  const procedure = provider?.cancellation;
-  const officialHelpUrl = procedure?.sourceUrl;
-  const officialCancellationUrl = procedure?.url;
 
   const submit = () => {
     for (const value of [requestedAt, effectiveDate]) {
@@ -90,101 +103,90 @@ function CancellationForm({ subscription, provider }: { subscription: Subscripti
 
   return (
     <Screen>
-      <Card>
-        <Card.Title
-          title="Comment résilier"
-          subtitle={provider?.name ?? subscription.customProviderName ?? 'Fournisseur inconnu'}
+      <Panel>
+        <CancellationProcedure
+          provider={provider}
+          title={`Résilier ${provider?.name ?? subscription.customProviderName ?? subscription.label}`}
+          showHelpLink
         />
-        <Card.Content style={{ gap: 8 }}>
-          {procedure ? (
-            <>
-              <Text variant="bodyMedium">{`Méthode : ${CANCELLATION_METHOD_LABELS[procedure.method]}`}</Text>
-              <Text variant="bodyMedium">{procedure.instructions}</Text>
-              <Muted>
-                {procedure.lastVerifiedAt
-                  ? `Procédure vérifiée le ${formatDate(procedure.lastVerifiedAt)}. Les parcours changent : en cas de doute, fiez-vous au site officiel.`
-                  : 'Procédure non vérifiée : indicative seulement, fiez-vous au site officiel du fournisseur.'}
-              </Muted>
-            </>
-          ) : (
-            <Text variant="bodyMedium">{GENERIC_CANCELLATION_INSTRUCTIONS}</Text>
-          )}
-        </Card.Content>
-        <Card.Actions>
-          {officialHelpUrl ? (
-            <Button onPress={() => WebBrowser.openBrowserAsync(officialHelpUrl)}>Aide officielle</Button>
-          ) : null}
-          {officialCancellationUrl ? (
-            <Button
-              mode="contained"
-              icon="open-in-new"
-              onPress={() => WebBrowser.openBrowserAsync(officialCancellationUrl)}
-            >
-              Ouvrir le parcours officiel
-            </Button>
-          ) : null}
-        </Card.Actions>
-      </Card>
+        <Muted>{verificationNotice(provider)}</Muted>
+      </Panel>
 
       <Muted>
         L’application ne résilie rien à votre place : elle vous aide à suivre la démarche. Une absence de prélèvement ne
         prouve pas qu’une résiliation est effective.
       </Muted>
 
-      <SectionTitle>Suivi de ma démarche</SectionTitle>
-      <Card>
-        <Card.Content style={{ gap: 8 }}>
-          <RadioButton.Group onValueChange={(value) => setStatus(value as CancellationStatus)} value={status}>
-            {STATUSES.map((value) => (
-              <RadioButton.Item key={value} label={CANCELLATION_STATUS_LABELS[value]} value={value} />
-            ))}
-          </RadioButton.Group>
-          <Muted>Méthode utilisée</Muted>
-          <View>
-            <SegmentedButtons
-              value={method ?? ''}
-              onValueChange={(value) => setMethod(value as CancellationMethod)}
-              buttons={METHODS.slice(0, 3).map((value) => ({ value, label: CANCELLATION_METHOD_LABELS[value] }))}
-              style={{ marginBottom: 6 }}
-            />
-            <SegmentedButtons
-              value={method ?? ''}
-              onValueChange={(value) => setMethod(value as CancellationMethod)}
-              buttons={METHODS.slice(3).map((value) => ({ value, label: CANCELLATION_METHOD_LABELS[value] }))}
-            />
-          </View>
-          <TextInput
-            label="Date de la demande (AAAA-MM-JJ)"
-            mode="outlined"
-            value={requestedAt}
-            onChangeText={setRequestedAt}
-          />
-          <TextInput
-            label="Date d’effet (AAAA-MM-JJ)"
-            mode="outlined"
-            value={effectiveDate}
-            onChangeText={setEffectiveDate}
-          />
-          <TextInput
-            label="Référence / numéro de dossier"
-            mode="outlined"
-            value={reference}
-            onChangeText={setReference}
-          />
-          <TextInput label="Notes" mode="outlined" value={notes} onChangeText={setNotes} multiline />
-          <ErrorText message={error} />
-        </Card.Content>
-        <Card.Actions>
-          {subscription.cancellation ? (
-            <Button onPress={() => clear.mutate()} loading={clear.isPending}>
+      <Panel>
+        <Text variant="titleLarge" accessibilityRole="header">
+          Où en êtes-vous ?
+        </Text>
+        <OptionGroup label="État de la démarche" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+        <FieldLabel>Méthode utilisée</FieldLabel>
+        <OptionGroup label="Méthode utilisée" options={METHOD_OPTIONS} value={method} onChange={setMethod} />
+        <FieldLabel>Détails de la demande</FieldLabel>
+        <TextInput
+          label="Date de la demande (AAAA-MM-JJ)"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={requestedAt}
+          onChangeText={setRequestedAt}
+        />
+        <TextInput
+          label="Date d’effet (AAAA-MM-JJ)"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={effectiveDate}
+          onChangeText={setEffectiveDate}
+        />
+        <TextInput
+          label="Référence ou numéro de dossier"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={reference}
+          onChangeText={setReference}
+        />
+        <TextInput
+          label="Notes"
+          mode="outlined"
+          outlineStyle={controlStyles.fieldOutline}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+        />
+        <ErrorText message={error} />
+        <View style={formStyles.actions}>
+          {tracked ? (
+            <Button
+              mode="outlined"
+              textColor={brand.colors.destructive}
+              contentStyle={controlStyles.mainAction}
+              style={formStyles.action}
+              onPress={() => clear.mutate()}
+              loading={clear.isPending}
+              disabled={clear.isPending}
+            >
               Effacer le suivi
             </Button>
           ) : null}
-          <Button mode="contained" onPress={submit} loading={save.isPending} disabled={save.isPending}>
-            Enregistrer
+          <Button
+            mode="contained"
+            contentStyle={controlStyles.mainAction}
+            style={formStyles.action}
+            onPress={submit}
+            loading={save.isPending}
+            disabled={save.isPending}
+          >
+            Enregistrer le suivi
           </Button>
-        </Card.Actions>
-      </Card>
+        </View>
+      </Panel>
     </Screen>
   );
 }
+
+const formStyles = StyleSheet.create({
+  fieldLabel: { marginTop: 4 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  action: { flexGrow: 1 },
+});
