@@ -36,7 +36,7 @@ export const FIXTURE_SCENARIOS: FixtureScenario[] = [
   { id: 'gym', description: 'Salle de sport inconnue du catalogue, prélèvement SEPA', expect: { detected: true } },
   {
     id: 'stopped',
-    description: 'Abonnement arrêté depuis plus de 3 mois',
+    description: 'Abonnement interrompu depuis environ deux mois',
     expect: { detected: true, stale: true, providerSlug: 'deezer' },
   },
   { id: 'two-payments', description: 'Seulement deux paiements', expect: { detected: true, maxLevel: 'low' } },
@@ -73,6 +73,21 @@ function monthlyDates(today: string, day: number, fromMonthsAgo: number, toMonth
   }
   return dates;
 }
+
+/**
+ * Sans filtre sur une date du jour, contrairement à `monthlyDates` : un report au jour ouvré
+ * ne peut pas faire disparaître la dernière échéance, qui reste à `lastDate` ou deux jours après au plus.
+ */
+function monthlyDatesEndingOn(lastDate: string, paymentCount: number): string[] {
+  const day = Number(lastDate.slice(8, 10));
+  return Array.from({ length: paymentCount }, (_, index) =>
+    nextBusinessDay(addMonthsClamped(lastDate, index - paymentCount + 1, day)),
+  );
+}
+
+// Assez loin pour que la série soit interrompue (au-delà d'un mois et 15 jours de grâce),
+// assez près pour qu'elle ne soit pas abandonnée (en deçà de trois mois), quelle que soit la date du jour.
+const STOPPED_SERIES_DAYS_SINCE_LAST_PAYMENT = 60;
 
 function formatDayMonth(value: string): string {
   return `${value.slice(8, 10)}/${value.slice(5, 7)}`;
@@ -138,7 +153,10 @@ export function generateFixtureTransactions(today: string, accountId = 'fixture-
     );
   });
 
-  for (const date of monthlyDates(today, 20, 10, 4)) {
+  const stoppedSeriesLastDate = toIsoDate(
+    new Date(parseIsoDate(today).getTime() - STOPPED_SERIES_DAYS_SINCE_LAST_PAYMENT * DAY_MS),
+  );
+  for (const date of monthlyDatesEndingOn(stoppedSeriesLastDate, 7)) {
     addTransaction('stopped', date, -1199, `CB DEEZER PARIS ${formatDayMonth(date)}`, 'card');
   }
 

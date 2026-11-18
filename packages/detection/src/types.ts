@@ -44,6 +44,13 @@ export interface DetectionConfig {
   lowThreshold: number;
   /** Jours de grâce au-delà de l'échéance attendue avant de considérer la série comme inactive. */
   staleGraceDays: number;
+  /** Nombre d'intervalles sans paiement au-delà duquel une série n'est plus proposée du tout. */
+  abandonedAfterIntervals: number;
+  /**
+   * Expressions régulières (insensibles à la casse) désignant un intermédiaire de paiement (PayPal, Lydia…).
+   * Une opération passée par un intermédiaire n'est retenue que si elle désigne aussi un fournisseur du catalogue.
+   */
+  paymentIntermediaryPatterns: string[];
 }
 
 export interface DetectionOptions {
